@@ -21,11 +21,13 @@ All the parameters are set using command line arguments and the scheme is design
 
 The scheme was tested under Ubuntu 17.04 and 18.04 systems. Follow these instructions to build it:
 
-	1. Download the repository ``
+	1. Download the repository `git clone https://github.com/sergioreyblanco/texture_classification_scheme.git`
 
-	2. Install dependencies: `sudo apt-get install libblas-dev liblapacke-dev liblapack-dev libvlfeat-dev`.
+	2. Access directory: `cd texture_classification_scheme`.
 
-	3. Compile: `make`.
+	3. Install dependencies: `sudo apt-get install libblas-dev liblapacke-dev liblapack-dev libvlfeat-dev`.
+
+	4. Compile: `make`.
 
 	\*. Rebuild with `make clean; make`
 
