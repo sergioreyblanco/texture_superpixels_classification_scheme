@@ -15,11 +15,11 @@
 #include "utility/load_data.h"
 #include "utility/general_utilities.h"
 
-
+extern struct timeval  tv1;
 
 int main(int argc, char **argv){
 
-
+  gettimeofday(&tv1, NULL);
 
 
   /************ Important variables **********/
@@ -30,11 +30,11 @@ int main(int argc, char **argv){
   struct svm_node *X_matrix = NULL; // data matrix with the prediction variables
   bool cross_validation = false; // whether to do or not CV
   int nr_fold = 5; // number of folds of the CV
-  image_struct *image, *train_image; // hyperspectral data structures
-  reference_data_struct *gt_train, *gt_test, *gt_train_image; // reference data structures
+  image_struct *image, *train_image=NULL; // hyperspectral data structures
+  reference_data_struct *gt_train, *gt_test, *gt_train_image=NULL; // reference data structures
   segmentation_struct *seg_image = NULL; // segmentation data structure
   command_arguments_struct* command_arguments; // input command arguments data structure
-  texture_struct* descriptors = NULL, *descriptors_train; // texture descriptors data structures
+  texture_struct* descriptors = NULL, *descriptors_train = NULL; // texture descriptors data structures
   char error[1500], message[1500]; //strings for info and error printing
 
 
@@ -49,46 +49,45 @@ int main(int argc, char **argv){
 
   // loading the hyperspectral image into memory
   image=(image_struct*)malloc(sizeof(image_struct));
-  load_hsi(image, command_arguments->input_hsi, error);
+  load_hsi(image, (char*)get_command_arguments_input_hsi(command_arguments), error);
 
   // loading the training reference data image into memory
   gt_train=(reference_data_struct*)malloc(sizeof(reference_data_struct));
-  load_gt(gt_train, command_arguments->input_gttrain, "train", error);
+  load_gt(gt_train, (char*)get_command_arguments_input_gttrain(command_arguments), "train", error);
 
   // loading the testing reference data image into memory
   gt_test=(reference_data_struct*)malloc(sizeof(reference_data_struct));
-  load_gt(gt_test, command_arguments->input_gttest, "test", error);
+  load_gt(gt_test, (char*)get_command_arguments_input_gttest(command_arguments), "test", error);
 
-  // removing the unlabeled pixels from the hyperspectral image
-  train_image = (image_struct*)malloc(sizeof(image_struct));
-  remove_unlabeled_hsi(image, gt_train, train_image);
+  if(get_command_arguments_trainpredict_type(command_arguments) == 1 || get_command_arguments_trainpredict_type(command_arguments) == 2){
+    // removing the unlabeled pixels from the hyperspectral image
+    train_image = (image_struct*)malloc(sizeof(image_struct));
+    remove_unlabeled_hsi(image, gt_train, train_image);
 
-  // removing the unlabeled pixels from the reference data image
-  gt_train_image = (reference_data_struct*)malloc(sizeof(reference_data_struct));
-  remove_unlabeled_gt(gt_train, gt_train_image);
+    // removing the unlabeled pixels from the reference data image
+    gt_train_image = (reference_data_struct*)malloc(sizeof(reference_data_struct));
+    remove_unlabeled_gt(gt_train, gt_train_image);
+  }
+
 
   // tasks only done if texture descriptors needed
-  if(command_arguments->trainpredict_type == 3){
+  if(get_command_arguments_trainpredict_type(command_arguments) == 3){
     seg_image=(segmentation_struct*)malloc(sizeof(segmentation_struct));
 
     // if not segmented image introduced
-    if(command_arguments->input_seg[0] == -1){
-
-      start_crono("SLIC");
+    if(get_command_arguments_input_seg(command_arguments)[0] == -1){
 
       // segmentation algorithm over the hyperspectral image
       do_segmentation(1, image, seg_image, error);
 
-      stop_crono();
-
     } else{
 
       // loading a previously done segmentated image
-      load_segmentation(seg_image, command_arguments->input_seg, error);
+      load_segmentation(seg_image, (char*)get_command_arguments_input_seg(command_arguments), error);
     }
 
     // texture descriptors calculation
-    descriptors = texture_pipeline(image, seg_image, gt_train, get_reference_data_width(gt_train_image), command_arguments, error);
+    descriptors = texture_pipeline(image, train_image, seg_image, gt_train, get_reference_data_width(gt_train)*get_reference_data_height(gt_train), command_arguments, error);
 
     // removing the unlabeled descriptors form the descriptors data structure
     descriptors_train = (texture_struct*)malloc(sizeof(texture_struct));
@@ -98,11 +97,11 @@ int main(int argc, char **argv){
 
   //load_problem_txt(input_file_name_train, X_matrix);
   // problem loading for pixel or block training and predicting
-  if(command_arguments->trainpredict_type == 1 || command_arguments->trainpredict_type == 2){
+  if(get_command_arguments_trainpredict_type(command_arguments) == 1 || get_command_arguments_trainpredict_type(command_arguments) == 2){
     load_problem_hsi(train_image, gt_train_image, get_reference_data_width(gt_train_image), &svm_prob, X_matrix);
   }
   // problem loading for texture descriptors training and predicting
-  else if(command_arguments->trainpredict_type == 3){
+  else if(get_command_arguments_trainpredict_type(command_arguments) == 3){
     load_problem_texture(descriptors_train, &svm_prob, X_matrix);
   }
 
@@ -127,13 +126,13 @@ int main(int argc, char **argv){
     stop_crono();
 
     // saving of the created model into disk
-    if(command_arguments->output_model[0] != -1) {
-  		if(svm_save_model(command_arguments->output_model, svm_model)) {
-        sprintf(error, "Cannot save model to file %s", command_arguments->output_model);
+    if(get_command_arguments_output_model(command_arguments)[0] != -1) {
+  		if(svm_save_model((char*)get_command_arguments_output_model(command_arguments), svm_model)) {
+        sprintf(error, "Cannot save model to file %s", (char*)get_command_arguments_output_model(command_arguments));
         print_error((char*)error);
   			exit(1);
   		} else {
-        sprintf(message, "Saved " UNDERLINED "SVM model" RESET GREEN " : %s", command_arguments->output_model);
+        sprintf(message, "Saved " UNDERLINED "SVM model" RESET GREEN " : %s", (char*)get_command_arguments_output_model(command_arguments));
         print_info((char*)message);
       }
     }
@@ -146,13 +145,13 @@ int main(int argc, char **argv){
   /************************  Predict  ************************/
 
   // reading a previously created model from disk
-  if(command_arguments->output_model[0] != -1){
-    if((svm_model=svm_load_model(command_arguments->output_model))==0) {
-      sprintf(error, "Cannot open model from file %s", command_arguments->output_model);
+  if(get_command_arguments_output_model(command_arguments)[0] != -1){
+    if((svm_model=svm_load_model((char*)get_command_arguments_output_model(command_arguments)))==0) {
+      sprintf(error, "Cannot open model from file %s", (char*)get_command_arguments_output_model(command_arguments));
       print_error((char*)error);
       exit(1);
   	} else {
-      sprintf(message, "Loaded " UNDERLINED "SVM model" RESET GREEN " : %s", command_arguments->output_model);
+      sprintf(message, "Loaded " UNDERLINED "SVM model" RESET GREEN " : %s", (char*)get_command_arguments_output_model(command_arguments));
       print_info((char*)message);
     }
   }
@@ -175,11 +174,11 @@ int main(int argc, char **argv){
 
   //predict_txt(input_test,output_test);
   // prediction for pixel or block training and predicting
-	if(command_arguments->trainpredict_type == 1 || command_arguments->trainpredict_type == 2){
+	if(get_command_arguments_trainpredict_type(command_arguments) == 1 || get_command_arguments_trainpredict_type(command_arguments) == 2){
     predict_hsi(command_arguments, svm_param, svm_model, image, gt_test, error, message);
   }
   // prediction for texture descriptors training and predicting
-  else if(command_arguments->trainpredict_type == 3){
+  else if(get_command_arguments_trainpredict_type(command_arguments) == 3){
     predict_texture(command_arguments, descriptors, svm_model, seg_image, gt_test, error, message);
   }
 

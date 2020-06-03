@@ -270,7 +270,7 @@ int *numero_cuencas(S *lab, int H, int V, int *tot1, int *mi1, int *ma1)
   H1,V1 : parametros de salida (H1 contendra el numero de semgntos)
   K : numero de centroides
 */
-int * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K)
+double * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K)
 {
 
    int  i, j, k ;
@@ -285,7 +285,8 @@ int * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmean
    //mi1=model.mi;ma1=model.ma;tipo=model.tipo;
 
    //se cuenta el numero de segmentos y el tam minimo y maximo de cada uno (en cantidad de pixeles que contienen)
-   int *data1, HV1, mis, mas ;
+   double *data1;
+   int HV1, mis, mas ;
    numero_cuencas(seg,H,V,&HV1,&mis,&mas);
    V1=1; //nada
    H1=HV1; //numero de segmentos
@@ -315,7 +316,7 @@ int * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmean
       if(nclas[i]>ma2)
         ma2=nclas[i];
 
-   data1= new int [ HV1*K*B ] ( ) ; //descriptores de vlad (tantos como segmentos haya, cada uno con k*b componentes)
+   data1= new double [ HV1*K*B ] ( ) ; //descriptores de vlad (tantos como segmentos haya, cada uno con k*b componentes)
 
    //son vectores auxiliares en el bucle siguiente (OPTIMIZABLES)
    int *datos2=(int *)malloc(ma2*B*sizeof(int)); //vector de tamaño igual al numero de pixeles del segmento mayor y el numero de bandas de este (OPTMIZABLE)
@@ -338,7 +339,7 @@ int * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmean
 
       //multiplica la salida del descriptor vlad generado por 10000 antes de obtener el resultado final
       for(j=0;j<K*B;j++)
-        data1[k*K*B+j] = (int)(10000*out2[j]);
+        data1[k*K*B+j] = (double)(10000*out2[j]);
    }
 
    free(out2); free(datos2); //se liberan los vectores auxiliares anteriores
@@ -348,7 +349,7 @@ int * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmean
 }
 
 
-int * vlad_sift ( sift_model_t desc, int B, int H, int V, kmeans_model_t & model, int & H1, int & K )
+double * vlad_sift ( descriptor_model_t desc, int B, int H, int V, kmeans_model_t & model, int & H1, int & K )
  {
 
    int  i, j, k ;
@@ -384,7 +385,7 @@ int * vlad_sift ( sift_model_t desc, int B, int H, int V, kmeans_model_t & model
 
 
    //////////// vlad de cada segmento
-   int *data1 = new int [ nseg*K*B ] ( ) ; //descriptores de vlad (tantos como segmentos haya, cada uno con k*b componentes)
+   double *data1 = new double [ nseg*K*B ] ( ) ; //descriptores de vlad (tantos como segmentos haya, cada uno con k*b componentes)
    //son vectores auxiliares en el bucle siguiente (OPTIMIZABLES)
    int *datos2=(int *)malloc(ma2*B*sizeof(int)); //vector de tamaño igual al numero de pixeles del segmento mayor y el numero de bandas de este (OPTMIZABLE)
    double *out2=(double *)malloc(K*B*sizeof(double)); //vector de salida de vlad_encode //ma2
@@ -412,7 +413,82 @@ int * vlad_sift ( sift_model_t desc, int B, int H, int V, kmeans_model_t & model
 
       //multiplica la salida del descriptor vlad generado por 10000 antes de obtener el resultado final
       for(j=0;j<K*B;j++)
-        data1[k*K*B+j] = 10000*out2[j];
+        data1[k*K*B+j] = (double)10000*out2[j];
+   }
+
+   free(out2); free(datos2); //se liberan los vectores auxiliares anteriores
+
+   H1 = nseg;
+
+   return data1;
+}
+
+
+double * vlad_liop ( descriptor_model_t desc, int B, int H, int V, kmeans_model_t & model, int & H1, int & K )
+ {
+
+   int  i, j, k ;
+
+   //se carga el modelo de kmeans en variables locales
+   double *c;
+   c=model.c;K=model.K;
+
+
+
+
+   //////////// obtenemos componentes de segmentos
+   int nseg=desc.num_segments; //numero de segmentos
+   int ma2=0; //numero de descriptores del segmento mas grande
+
+
+   for(i=0;i<nseg;i++){ //se imprime segmento con mas descriptores
+     if(ma2 < desc.descriptors_per_segment[i]){
+       ma2 = desc.descriptors_per_segment[i];
+     }
+   }
+
+   //conteo num de desc por segmnt
+   float mean=0, soncero=0;
+   for(i=0;i<nseg;i++){
+     //printf("%d\n", desc.descriptors_per_segment[i]);
+     mean = mean + desc.descriptors_per_segment[i];
+     if(desc.descriptors_per_segment[i] == 0){
+       soncero++;
+     }
+   }
+
+
+
+   //////////// vlad de cada segmento
+   double *data1 = new double [ nseg*K*B ] ( ) ; //descriptores de vlad (tantos como segmentos haya, cada uno con k*b componentes)
+   //son vectores auxiliares en el bucle siguiente (OPTIMIZABLES)
+   int *datos2=(int *)malloc(ma2*B*sizeof(int)); //vector de tamaño igual al numero de pixeles del segmento mayor y el numero de bandas de este (OPTMIZABLE)
+   double *out2=(double *)malloc(K*B*sizeof(double)); //vector de salida de vlad_encode //ma2
+
+   //bucle ppal del algoritmo
+   for(k=0;k<nseg;k++) //para cada segmento
+   {
+      if(k%10000==0 || k==(nseg-1)) printf("\tVLAD segment %d/%d\n", k+1, nseg); //cada 100000 segmentos se imprime un mensaje explicativo
+
+      //para cada banda de cada pixel del segmento actual
+      for(i=0;i<desc.descriptors_per_segment[k];i++)
+        for(j=0;j<B;j++)
+          datos2[i*B+j] = (int) desc.descriptors[k][i].desc[j];
+
+      //if(k==0){
+        //for(int i=0; i<desc.descriptors_per_segment[k]; i++){
+          //for(int j=0; j<B; j++){
+            //printf("%d  ", datos2[i*B+j]);;
+          //}printf("\n");
+        //}
+      //}
+
+      vlad_encode(datos2,out2,c,desc.descriptors_per_segment[k],K,B,k); //argumentos: vector con los valores espectrales de los pixeles del segmento actual, vector de salida, vector con los valores de los centroides (longitud k centroides de B componentes)
+                                                                      //            numero de pixeles del segmento actual, numero de centroides, numero de bandas
+
+      //multiplica la salida del descriptor vlad generado por 10000 antes de obtener el resultado final
+      for(j=0;j<K*B;j++)
+        data1[k*K*B+j] = (double)10000*out2[j];
    }
 
    free(out2); free(datos2); //se liberan los vectores auxiliares anteriores

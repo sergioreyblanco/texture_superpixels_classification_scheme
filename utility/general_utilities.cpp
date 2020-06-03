@@ -8,9 +8,31 @@
 
 #include "general_utilities.h"
 
-
-clock_t start;
+struct timeval  tv1;
 char current_function[50];
+
+
+void find_maxmin(unsigned int *data, int numData, long long unsigned int* min_value, long long unsigned int* max_value)
+{
+  long ma = 0, mi=10000000;
+
+  for(int i=0; i<numData;i++){
+    if(data[i] > ma){
+      ma = data[i];
+    } else if(data[i] < mi){
+      mi = data[i];
+    }
+  }
+
+  (*max_value) = ma;
+  (*min_value) = mi;
+}
+
+
+int factorial(int n)
+{
+    return (n==1 || n==0) ? 1: n * factorial(n - 1);
+}
 
 
 int index_element(unsigned int* array, int length, unsigned int element)
@@ -27,27 +49,31 @@ int index_element(unsigned int* array, int length, unsigned int element)
 void start_crono(const char* function_name)
 {
 
-  clock_t start = clock();
 
   strcpy((char*)current_function, (char*)function_name);
 
-  float seconds = (float)start / CLOCKS_PER_SEC;
+  struct timeval  tv2;
+  gettimeofday(&tv2, NULL);
 
   printf( HIGHLIGHTED"\n\n[STARTED");
   printf(BOLD " %s " RESET, current_function);
-  printf(HIGHLIGHTED"AT %d SECS]\n" RESET, (int)seconds);
+  long elapsed = (tv2.tv_sec-tv1.tv_sec);
+  printf(HIGHLIGHTED"AT %d SECS]\n" RESET, (int) elapsed);
 }
 
 
 void stop_crono()
 {
 
-  clock_t end = clock();
-  float seconds = (float)(end - start) / CLOCKS_PER_SEC;
+
+  struct timeval  tv2;
+  gettimeofday(&tv2, NULL);
+
 
   printf( HIGHLIGHTED"\n[ENDED");
   printf(BOLD " %s " RESET, current_function);
-  printf(HIGHLIGHTED"AT %d SECS]\n\n" RESET, (int)seconds);
+  long elapsed = (tv2.tv_sec-tv1.tv_sec);
+  printf(HIGHLIGHTED"AT %d SECS]\n\n" RESET, (int) (elapsed));
 }
 
 
@@ -159,38 +185,8 @@ int* force_integer_splits(int n, int x)
 
 void exit_with_help()
 {
-	char message[1500] =
-	"Usage: ./classification_scheme [hyperspectral image] [train reference data] [test reference data] [options]\n"
-	"options:\n"
-	"\t-s  -->  input_seg : input segmented image in RAW format | DEFAULT = segmentation algorithm applied to hyperspectral image\n"
-	"\t-m  -->  output_clasfmap : output classification map | DEFAULT = ouput/map.ppm\n"
-	"\t-f  -->  output_clasftxt : output classification textfile | DEFAULT = ouput/prediction.txt\n"
-	"\t-p  -->  trainpredict_type : type of train and prediction procedure | DEFAULT = 3\n"
-  "\t\t1 -- by pixel\n"
-  "\t\t2 -- by blocks\n"
-  "\t\t3 -- by segments\n"
-	"\t-k  -->  kernel_type : SVM kernel type | DEFAULT = 0\n"
-  "\t\t0 -- LINEAR kernel\n"
-  "\t\t1 -- POLYNOMIAL kernel\n"
-  "\t\t2 -- RBF kernel\n"
-  "\t\t3 -- SIGMOID kernel\n"
-	"\t-c  -->  C : set the parameter C of C-SVC | DEFAULT = 0.02\n"
-	"\t-o  -->  output_model : output SVM model generated in train phase | DEFAULT = output/output.model\n"
-	"\t-v  -->  verbose : set the quiet or verbose mode | DEFAULT = true\n"
-	"\t-t  -->  texture_pipeline : texture algorithms (pipeline to use) | DEFAULT = 0\n"
-  "\t\t0 -- no textures\n"
-  "\t\t1 -- kmeans + vlad\n"
-  "\t\t2 -- kmeans + bow\n"
-  "\t\t3 -- gmm + fishervectors\n"
-  "\t\t4 -- sift + km + vlad\n"
-  "\t\t5 -- sift + gmm + fishervectors\n"
-  "\t\t6 -- sift\n"
-  "\t\t7 -- dsift + km + vlad\n"
-  "\t\t8 -- dsift + gmm + fishervectors\n"
-  "\t\t9 -- dsift\n"
-  "\n\t * Parameters -t (1 or 2) and -p (any) are mutually exclusive\n";
 
-  print_info((char*)message);
+  print_info((char*)help_message);
 	exit(1);
 }
 

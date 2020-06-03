@@ -68,6 +68,6 @@ void classification_map_ppm(char *filename, int *img, unsigned int H, unsigned i
 				 *
 				 * @return     -
 				 */
-void confusion_matrix( reference_data_struct *gt_test, int* classification_map );
+void confusion_matrix( reference_data_struct *gt_test, int* classification_map, segmentation_struct* segmentation  );
 
 #endif

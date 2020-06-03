@@ -86,13 +86,84 @@ void prediction_textfile(int* classification_map, reference_data_struct* gt_test
 }
 
 
-void confusion_matrix( reference_data_struct *gt_test, int* classification_map )
+int* get_central_coords_per_segment(segmentation_struct* seg, int number_segments)
+{
+  int* central_coords = (int*)calloc(number_segments, sizeof(int));
+  int* x1 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x2 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x3 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x4 = (int*)malloc(number_segments*2*sizeof(int));
+
+
+  for(unsigned int k=0; k< (unsigned int)number_segments; k++){
+    x1[2*k] = -1; x2[2*k] = -1; x3[2*k] = -1; x4[2*k] = -1;
+    x1[2*k+1] = -1; x3[2*k+1] = -1; x3[2*k+1] = -1; x4[2*k+1] = -1;
+  }
+
+
+  for(unsigned int i=0; i < get_segmentation_height(seg); i++){
+    for(unsigned int j=0; j < get_segmentation_width(seg); j++){
+      unsigned int k = get_segmentation_data(seg)[i*get_segmentation_width(seg)+j];
+
+      if( x1[2*k] == -1){
+        x1[2*k] = (int) (i);
+        x1[2*k+1] = (int) (j);
+      }
+
+      if( k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j+1]
+          && ( x2[2*k]==-1 || (x2[2*k+1] < (int)j) )){
+        x2[2*k] = (int) (i);
+        x2[2*k+1] = (int) (j);
+      }
+
+      if( (i>0 || j>0) && k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j-1]
+          && ( x3[2*k]==-1 || (x3[2*k] < (int)i) )){
+        x3[2*k] = (int) (i);
+        x3[2*k+1] = (int) (j);
+      }
+
+      if( k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j+1]
+          && ( x4[2*k]==-1 || (x4[2*k] < (int)i) )) {
+        x4[2*k] = (int) (i);
+        x4[2*k+1] = (int) (j);
+      }
+    }
+  }
+
+
+  for(int k=0; k<number_segments; k++){
+    //printf("\n*%d: \n", k);
+    //printf("%d,%d - %d,%d - %d,%d - %d,%d\n", x1[2*k],x1[2*k+1], x2[2*k],x2[2*k+1], x3[2*k],x3[2*k+1], x4[2*k],x4[2*k+1]);
+
+    int row=0;
+    int row1 = (x3[2*k] + x1[2*k]) / 2; int row2 = (x4[2*k] + x2[2*k]) / 2;
+    if(row1 == row2){
+      row = row1;
+    } else{
+      row = (row1 + row2)/2;
+    }
+
+    int col;
+    int col1 = (x2[2*k+1] + x1[2*k+1]) / 2; int col2 = (x4[2*k+1] + x3[2*k+1]) / 2;
+    if(col1 == col2){
+      col = col1;
+    } else{
+      col = (col1 + col2)/2;
+    }
+
+    central_coords[k] = row*get_segmentation_width(seg)+col;
+  }
+
+  return(central_coords);
+}
+
+void confusion_matrix( reference_data_struct *gt_test, int* classification_map, segmentation_struct* segmentation )
 {
   unsigned int *maximum_different_classes = (unsigned int*)calloc(MAXIMUM_NUMBER_CLASSES,sizeof(unsigned int));
   unsigned int *different_classes;
   int number_classes = 0, hits=0, total=0;
   int *conf_mat, *sum_per_row, *sum_per_col;
-  double *OA_per_class, OA, AA=0;
+  double *OA_per_class, OA, AA=0, kappa=0;
   char conf_mat_print[2000], aux[30];
   memset(conf_mat_print, '\0', sizeof(conf_mat_print));
 
@@ -120,18 +191,27 @@ void confusion_matrix( reference_data_struct *gt_test, int* classification_map )
   //sort the class array
   sort_array(different_classes, number_classes);
 
+  int* central_coords = get_central_coords_per_segment( segmentation,  get_segmentation_number_segments(segmentation));
 
   //fill the confusion matrix
+  int sum=0, acum=1;
   conf_mat = ( int*)calloc(number_classes*number_classes,sizeof( int));
   for(unsigned int i=0; i<get_reference_data_width(gt_test)*get_reference_data_height(gt_test); i++){
-    if(get_reference_data_data(gt_test)[i] != 0){
+    //if(get_reference_data_data(gt_test)[i] != 0 && not_in(i, (unsigned int*)central_coords, get_segmentation_number_segments(segmentation))) {
+    if(i == (unsigned int) central_coords[0]){
+      central_coords[0] = central_coords[acum]; //se pone el siguiente de primero: esto se puede hacer porque estan ordenados en este array
+      acum++;
+      continue;
+    }
+
+    if(get_reference_data_data(gt_test)[i] != 0) {
       int x1 = index_element(different_classes, number_classes, classification_map[i]);
       int x2 = index_element(different_classes, number_classes, get_reference_data_data(gt_test)[i]);
 
       conf_mat[ (x1)*number_classes+(x2) ]++;
+      sum++;
     }
   }
-
 
   //compute the aggregate meassures
   sum_per_row = ( int*)calloc(number_classes,sizeof( int));
@@ -164,6 +244,18 @@ void confusion_matrix( reference_data_struct *gt_test, int* classification_map )
   }
   AA=AA/(double)number_classes;
 
+  // compute Kappa
+  double po = OA;
+  double pc = 0;
+  for(int i=0; i<number_classes; i++){
+    double n1=0, n2=0;
+    for(int j=0; j<number_classes; j++){
+      n1 += ((float)conf_mat[i*number_classes+j]/total);
+      n2 += ((float)conf_mat[j*number_classes+i]/total);
+    }
+    pc += n1*n2;
+  }
+  kappa = (po-pc)/(1-pc);
 
   ////// printing all the previous computations
   //first row: titles
@@ -234,7 +326,12 @@ void confusion_matrix( reference_data_struct *gt_test, int* classification_map )
 
   //new row: AA
   strncat(conf_mat_print, "\t  AA:\t", strlen("\t  AA:\t"));
-  sprintf(aux, "\t %0.4f %%" , AA*100);
+  sprintf(aux, "\t %0.4f %%\n" , AA*100);
+  strncat(conf_mat_print, aux, strlen(aux));
+
+  //new row: kappa
+  strncat(conf_mat_print, "\t  Kappa:", strlen("\t  Kappa:"));
+  sprintf(aux, "\t %0.4f %%" , kappa*100);
   strncat(conf_mat_print, aux, strlen(aux));
 
   print_info((char*)conf_mat_print);

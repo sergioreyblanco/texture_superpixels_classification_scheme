@@ -13,7 +13,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/time.h>
+
 
 // text printing formatting
 #define BOLD "\x1B[1m" //bolded letters
@@ -24,6 +25,45 @@
 #define GREEN "\x1B[32m" // green color
 #define RESET "\x1B[0m" // returns to the normal printing
 
+
+const char help_message[1500] =
+"Usage: ./classification_scheme [hyperspectral image] [train reference data] [test reference data] [options]\n"
+"\n\toptions:\n\n"
+"\t-s  -->  input_seg : input segmented image in RAW format | DEFAULT = segmentation algorithm applied to hyperspectral image\n"
+"\t-m  -->  output_clasfmap : output classification map | DEFAULT = ouput/map.ppm\n"
+"\t-f  -->  output_clasftxt : output classification textfile | DEFAULT = ouput/prediction.txt\n"
+"\t-p  -->  trainpredict_type : type of train and prediction procedure | DEFAULT = 3\n"
+"\t\t1 -- by pixel\n"
+"\t\t2 -- by blocks\n"
+"\t\t3 -- by segments\n"
+"\t-k  -->  kernel_type : SVM kernel type | DEFAULT = 0\n"
+"\t\t0 -- LINEAR kernel\n"
+"\t\t1 -- POLYNOMIAL kernel\n"
+"\t\t2 -- RBF kernel\n"
+"\t\t3 -- SIGMOID kernel\n"
+"\t-c  -->  C : set the parameter C of C-SVC | DEFAULT = 0.02\n"
+"\t-o  -->  output_model : output SVM model generated in train phase | DEFAULT = output/output.model\n"
+"\t-v  -->  verbose : set the quiet or verbose mode | DEFAULT = true\n"
+"\t-t  -->  texture_pipeline : texture algorithms (pipeline to use) | DEFAULT = 0\n"
+"\t\t0 -- no textures\n"
+"\t\t1 -- kmeans + vlad\n"
+"\t\t2 -- kmeans + bow\n"
+"\t\t3 -- gmm + fishervectors\n"
+"\t\t4 -- sift + km + vlad\n"
+"\t\t5 -- sift + gmm + fishervectors\n"
+"\t\t6 -- sift\n"
+"\t\t7 -- dsift + km + vlad\n"
+"\t\t8 -- dsift + gmm + fishervectors\n"
+"\t\t9 -- dsift\n"
+"\t-4  -->  sift_thresholds : 2 thresholds for the SIFT algorithm | DEFAULT = 0.1 2.5\n"
+"\t-7  -->  dsift_parameters : 4 parameters for the DSIFT algorithm | DEFAULT = 2 4 4 8\n"
+"\n\n\t * Parameters -t (1 or 2) and -p (any) are mutually exclusive";
+
+
+void find_maxmin(unsigned int *data, int numData, long long unsigned int* min_value, long long unsigned int* max_value);
+
+
+int factorial(int n);
 
 /**
 				 * @brief      Gets the index of an element in an array

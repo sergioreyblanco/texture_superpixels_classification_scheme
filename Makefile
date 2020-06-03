@@ -1,7 +1,7 @@
 
 CXX=g++
 CFLAGS = -Wall -O3
-LDLIBS = -lm -lopenblas -llapacke -lvl
+LDLIBS = `pkg-config --libs --cflags opencv` -lm -lopenblas -llapacke -lvl
 CPPFLAGS = -I./vlfeat-0.9.21
 
 DIRS = texture utility svm .

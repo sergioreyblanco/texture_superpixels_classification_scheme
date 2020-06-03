@@ -27,6 +27,6 @@
          *
          * @return     Descriptors data structure
          */
-  int* fishervectors_features ( image_struct * image, unsigned int * s, gmm_model_t & gmm );
+  double* fishervectors_features ( unsigned int  * data, segmentation_struct * s, gmm_model_t & gmm );
 
 #endif

@@ -9,25 +9,9 @@
 
 #include "dsift.h"
 
-//finds max and min values
-void find_maxmin_dsift(unsigned int *data, int numData, vl_size* min_value, vl_size* max_value)
-{
-  vl_size ma = 0, mi=10000000;
-
-  for(int i=0; i<numData;i++){
-    if(data[i] > ma){
-      ma = data[i];
-    } else if(data[i] < mi){
-      mi = data[i];
-    }
-  }
-
-  (*max_value) = ma;
-  (*min_value) = mi;
-}
 
 
-sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* parameters )
+descriptor_model_t dsift_features ( image_struct * image, unsigned int * seg, int* parameters )
  {
 
     /*********** variables ******************/
@@ -47,9 +31,8 @@ sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* par
     int maxY ;
     float const *descrs ;
     int nsegs = 0;
-    Ds descriptor;
     float *fdata;
-    sift_model_t output;
+    descriptor_model_t output;
 
     for(unsigned int sg=0;sg < get_image_width(image)*get_image_height(image);sg++){
       if(seg[sg] > (unsigned int)nsegs){
@@ -66,13 +49,14 @@ sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* par
 
 
       /*********** rescaling: [0,255] ******************/
-      find_maxmin_dsift(get_image_data(image)+(i*get_image_width(image)*get_image_height(image)),   get_image_width(image)*get_image_height(image),  &min_value,  &max_value);
+      find_maxmin(get_image_data(image)+(i*get_image_width(image)*get_image_height(image)),   get_image_width(image)*get_image_height(image),  &min_value,  &max_value);
 
       fdata = (float *) malloc(get_image_width(image)*get_image_height(image) * sizeof ((float) get_image_data(image)[0]) * sizeof (float)) ;
 
       //rescale: rescales the values in the range [0.0, 255.0] as the algorithm is tuned for PGM images
       for(unsigned int j=0; j<get_image_width(image)*get_image_height(image);j++){
         fdata[j] = (float) 0 + ( ((get_image_data(image)[((i*get_image_width(image)*get_image_height(image)) + j)] - min_value)*(255-0)) / (max_value-min_value) );
+        //fdata[j] = (float) get_image_data(image)[((i*get_image_width(image)*get_image_height(image)) + j)];
       }
 
 
@@ -141,12 +125,11 @@ sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* par
       descrs = vl_dsift_get_descriptors (dsift) ;
 
 
-      float *tmpDescr = (float*)malloc(sizeof(float) * descrSize) ;
-
       for (int k = 0 ; k < numFrames ; ++k) {
         //printf("keypoint coord: %f %f \n", frames[k].x, frames[k].y) ;
 
-
+        Ds descriptor;
+        float *tmpDescr = (float*)malloc(sizeof(float) * descrSize) ;
         vl_dsift_transpose_descriptor (tmpDescr,
                      descrs + descrSize * k,
                      geom.numBinT,
@@ -155,9 +138,10 @@ sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* par
         for (int i = 0 ; i < descrSize ; ++i) {
             short x = (512.0 * tmpDescr[i]) ;
             x = min_value + ( ((x-0)*(max_value-min_value))/(255-0) );
-            descriptor.desc[i] = x;
+            descriptor.desc.push_back((float)x);
         }
-        output.descriptors[seg[(int)frames[k].y * get_image_width(image) + (int)frames[k].x]].push_back(descriptor);
+        output.descriptors[seg[(int)round(frames[k].y) * get_image_width(image) + (int)round(frames[k].x)]].push_back(descriptor);
+        free(tmpDescr) ;
       }
 
 
@@ -172,7 +156,6 @@ sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* par
 
 
       /*********** liberation and exiting ******************/
-      free(tmpDescr) ;
       vl_dsift_delete (dsift) ;
 
       /*for (int i = 0 ; i < output.num_segments ; ++i) {
@@ -190,7 +173,7 @@ sift_model_t dsift_features ( image_struct * image, unsigned int * seg, int* par
 }
 
 
-sift_model_t dsift_basic_features ( image_struct * image, unsigned int * seg )
+descriptor_model_t dsift_basic_features ( image_struct * image, unsigned int * seg )
 {
 
   /*********** variables ******************/
@@ -203,7 +186,7 @@ sift_model_t dsift_basic_features ( image_struct * image, unsigned int * seg )
   int nsegs = 0;
   Ds descriptor;
   float *fdata;
-  sift_model_t output;
+  descriptor_model_t output;
 
   for(unsigned int sg=0;sg < get_image_width(image)*get_image_height(image);sg++){
     if(seg[sg] > (unsigned int)nsegs){
@@ -220,7 +203,7 @@ sift_model_t dsift_basic_features ( image_struct * image, unsigned int * seg )
 
 
     /*********** rescaling: [0,255] ******************/
-    find_maxmin_dsift(get_image_data(image)+(i*get_image_width(image)*get_image_height(image)),   get_image_width(image)*get_image_height(image),  &min_value,  &max_value);
+    find_maxmin(get_image_data(image)+(i*get_image_width(image)*get_image_height(image)),   get_image_width(image)*get_image_height(image),  &min_value,  &max_value);
 
     fdata = (float *) malloc(get_image_width(image)*get_image_height(image) * sizeof ((float) get_image_data(image)[0]) * sizeof (float)) ;
 

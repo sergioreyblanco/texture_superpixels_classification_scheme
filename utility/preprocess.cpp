@@ -10,6 +10,50 @@
 #include "preprocess.h"
 
 
+double* standardize(double* descriptors, int dim, int num, char* error)
+{
+
+  //standardize
+  double* descriptors_data = (double*)malloc(dim*num*sizeof(double));
+  double* mean = (double*)malloc(dim*sizeof(double));
+  double* sd = (double*)malloc(dim*sizeof(double));
+
+  for(int i=0; i<dim; i++){
+    mean[i] = 0;
+    for(int j=0; j<num; j++){
+      mean[i] = mean[i] + descriptors[j*dim+i];
+    }
+    mean[i] = mean[i] / num;
+
+    sd[i] = 0;
+    for(int j=0; j<num; j++){
+      sd[i] = sd[i] + (int)pow(descriptors[j*dim+i] - mean[i], 2);
+    }
+
+    sd[i] = sqrt(sd[i] * (1 / (double)(num - 1)));
+  }
+
+
+  for(int i=0; i<dim; i++){
+    if(sd[i] != 0){
+      for(int j=0; j<num; j++){
+        descriptors_data[j*dim+i] = (descriptors[j*dim+i] - mean[i]) / sd[i];
+      }
+    } else{
+      for(int j=0; j<num; j++){
+        descriptors_data[j*dim+i] = descriptors[j*dim+i];
+      }
+    }
+  }
+
+  free(mean);
+  free(sd);
+  //
+
+  return descriptors_data;
+}
+
+
 int* get_means_per_segment(segmentation_struct* seg, image_struct* image, int number_segments)
 {
   int* means = (int*)calloc(number_segments*get_image_bands(image), sizeof(int));;
@@ -57,6 +101,87 @@ int* get_means_per_segment(segmentation_struct* seg, image_struct* image, int nu
 }
 
 
+double* get_central_pixel_per_segment(segmentation_struct* seg, image_struct* image, int number_segments)
+{
+  double* central_pixels = (double*)calloc(number_segments*get_image_bands(image), sizeof(double));
+  int* x1 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x2 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x3 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x4 = (int*)malloc(number_segments*2*sizeof(int));
+
+
+  for(unsigned int k=0; k< (unsigned int)number_segments; k++){
+    x1[2*k] = -1; x2[2*k] = -1; x3[2*k] = -1; x4[2*k] = -1;
+    x1[2*k+1] = -1; x3[2*k+1] = -1; x3[2*k+1] = -1; x4[2*k+1] = -1;
+  }
+
+
+  for(unsigned int i=0; i < get_segmentation_height(seg); i++){
+    for(unsigned int j=0; j < get_segmentation_width(seg); j++){
+      unsigned int k = get_segmentation_data(seg)[i*get_segmentation_width(seg)+j];
+
+      if( x1[2*k] == -1){
+        x1[2*k] = (int) (i);
+        x1[2*k+1] = (int) (j);
+      }
+
+      if( k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j+1]
+          && ( x2[2*k]==-1 || (x2[2*k+1] < (int)j) )){
+        x2[2*k] = (int) (i);
+        x2[2*k+1] = (int) (j);
+      }
+
+      if( (i>0 || j>0) && k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j-1]
+          && ( x3[2*k]==-1 || (x3[2*k] < (int)i) )){
+        x3[2*k] = (int) (i);
+        x3[2*k+1] = (int) (j);
+      }
+
+      if( k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j+1]
+          && ( x4[2*k]==-1 || (x4[2*k] < (int)i) )) {
+        x4[2*k] = (int) (i);
+        x4[2*k+1] = (int) (j);
+      }
+    }
+  }
+
+
+  for(int k=0; k<number_segments; k++){
+    //printf("\n*%d: \n", k);
+    //printf("%d,%d - %d,%d - %d,%d - %d,%d\n", x1[2*k],x1[2*k+1], x2[2*k],x2[2*k+1], x3[2*k],x3[2*k+1], x4[2*k],x4[2*k+1]);
+
+    int row=0;
+    int row1 = (x3[2*k] + x1[2*k]) / 2; int row2 = (x4[2*k] + x2[2*k]) / 2;
+    if(row1 == row2){
+      row = row1;
+    } else{
+      row = (row1 + row2)/2;
+    }
+
+    int col;
+    int col1 = (x2[2*k+1] + x1[2*k+1]) / 2; int col2 = (x4[2*k+1] + x3[2*k+1]) / 2;
+    if(col1 == col2){
+      col = col1;
+    } else{
+      col = (col1 + col2)/2;
+    }
+
+    //printf("%d,%d \n", row, col);
+    for(unsigned int b=0; b<get_image_bands(image); b++){
+      central_pixels[ k*get_image_bands(image) + b ] = (double)get_image_data(image)[ (row * get_segmentation_width(seg) + col)*get_image_bands(image) + b ];
+    }
+  }
+
+  /*for(unsigned int k=0; k< (unsigned int)number_segments; k++){
+    if(k==231){printf("\n*%d: \n", k);
+    printf("%d,%d - %d,%d - %d,%d - %d,%d\n\n", x1[2*k],x1[2*k+1], x2[2*k],x2[2*k+1], x3[2*k],x3[2*k+1], x4[2*k],x4[2*k+1]);}
+  }*/
+
+
+  return(central_pixels);
+}
+
+
 void remove_unlabeled_descriptors(texture_struct* descriptors, texture_struct* descriptors_train)
 {
 
@@ -67,15 +192,16 @@ void remove_unlabeled_descriptors(texture_struct* descriptors, texture_struct* d
     set_descriptors_dim_descriptors(descriptors_train, get_descriptors_dim_descriptors(descriptors), error);
 
 
-    int* datos_aux = (int*)malloc(get_descriptors_instances(descriptors)*get_descriptors_dim_descriptors(descriptors)*sizeof(int));
+    double* datos_aux = (double*)malloc(get_descriptors_instances(descriptors)*get_descriptors_dim_descriptors(descriptors)*sizeof(double));
     int* labels_aux = (int*)malloc(get_descriptors_instances(descriptors)*sizeof(int));
+
     for(int i=0;i<get_descriptors_number_descriptors(descriptors);i++){
       if(get_descriptors_labels(descriptors)[i] != 0){
 
         labels_aux[partial_index1] = (int)get_descriptors_labels(descriptors)[i];
         partial_index1++;
         for(int j=0;j<get_descriptors_dim_descriptors(descriptors);j++){
-          datos_aux[partial_index2] = (int)get_descriptors_data(descriptors)[i*get_descriptors_dim_descriptors(descriptors)+j];
+          datos_aux[partial_index2] = (double)get_descriptors_data(descriptors)[i*get_descriptors_dim_descriptors(descriptors)+j];
           partial_index2++;
         }
       }
@@ -97,7 +223,7 @@ void remove_unlabeled_descriptors(texture_struct* descriptors, texture_struct* d
 }
 
 
-int* get_labels_per_segment(segmentation_struct* seg, reference_data_struct* gt_train, int number_segments)
+int* get_labels_per_segment_majority_voting(segmentation_struct* seg, reference_data_struct* gt_train, int number_segments)
 {
   int* labels = (int*)malloc(number_segments*sizeof(int));
   int *nclas=(int *)calloc(number_segments,sizeof(int)); //vector de tamanho igual al numero de segmentos y que contiene la cantidad de pixeles de cada uno
@@ -123,6 +249,7 @@ int* get_labels_per_segment(segmentation_struct* seg, reference_data_struct* gt_
   }
 
   //para cada segmento
+  int sum=0;
   for(int k=0;k<number_segments;k++){
     unsigned int* aux=(unsigned int*)malloc(nclas[k]*sizeof(unsigned int));
 
@@ -133,10 +260,94 @@ int* get_labels_per_segment(segmentation_struct* seg, reference_data_struct* gt_
 
     labels[k] = most_frequent_element(aux, nclas[k]);
 
+    if(labels[ k ] !=0){
+      sum++;
+      //printf("\n*%d: \n", k);
+      //printf("%d\n", central_labels[ (row * get_segmentation_width(seg) + col) ]);
+    }
+
     free(aux);
   }
 
   return(labels);
+}
+
+
+int* get_labels_per_segment_central_pixels(segmentation_struct* seg, reference_data_struct* gt_train, int number_segments)
+{
+  int* central_labels = (int*)malloc(number_segments*sizeof(int));
+  int* x1 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x2 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x3 = (int*)malloc(number_segments*2*sizeof(int));
+  int* x4 = (int*)malloc(number_segments*2*sizeof(int));
+
+
+  for(unsigned int k=0; k< (unsigned int)number_segments; k++){
+    x1[2*k] = -1; x2[2*k] = -1; x3[2*k] = -1; x4[2*k] = -1;
+    x1[2*k+1] = -1; x3[2*k+1] = -1; x3[2*k+1] = -1; x4[2*k+1] = -1;
+  }
+
+
+  for(unsigned int i=0; i < get_segmentation_height(seg); i++){
+    for(unsigned int j=0; j < get_segmentation_width(seg); j++){
+      unsigned int k = get_segmentation_data(seg)[i*get_segmentation_width(seg)+j];
+
+      if( x1[2*k] == -1){
+        x1[2*k] = (int) (i);
+        x1[2*k+1] = (int) (j);
+      }
+
+      if( k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j+1]
+          && ( x2[2*k]==-1 || (x2[2*k+1] < (int)j) )){
+        x2[2*k] = (int) (i);
+        x2[2*k+1] = (int) (j);
+      }
+
+      if( (i>0 || j>0) && k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j-1]
+          && ( x3[2*k]==-1 || (x3[2*k] < (int)i) )){
+        x3[2*k] = (int) (i);
+        x3[2*k+1] = (int) (j);
+      }
+
+      if( k != get_segmentation_data(seg)[i*get_segmentation_width(seg)+j+1]
+          && ( x4[2*k]==-1 || (x4[2*k] < (int)i) )) {
+        x4[2*k] = (int) (i);
+        x4[2*k+1] = (int) (j);
+      }
+    }
+  }
+
+  int sum=0;
+  for(int k=0; k<number_segments; k++){
+
+    //printf("%d,%d - %d,%d - %d,%d - %d,%d\n", x1[2*k],x1[2*k+1], x2[2*k],x2[2*k+1], x3[2*k],x3[2*k+1], x4[2*k],x4[2*k+1]);
+
+    int row=0;
+    int row1 = (x3[2*k] + x1[2*k]) / 2; int row2 = (x4[2*k] + x2[2*k]) / 2;
+    if(row1 == row2){
+      row = row1;
+    } else{
+      row = (row1 + row2)/2;
+    }
+
+    int col;
+    int col1 = (x2[2*k+1] + x1[2*k+1]) / 2; int col2 = (x4[2*k+1] + x3[2*k+1]) / 2;
+    if(col1 == col2){
+      col = col1;
+    } else{
+      col = (col1 + col2)/2;
+    }
+
+    central_labels[ k ] = get_reference_data_data(gt_train)[ (row * get_segmentation_width(seg) + col) ];
+
+    if(central_labels[ k ] !=0){
+      sum++;
+      //printf("\n*%d: \n", k);
+      //printf("%d\n", central_labels[ (row * get_segmentation_width(seg) + col) ]);
+    }
+  }
+
+  return(central_labels);
 }
 
 
@@ -146,7 +357,6 @@ void print_null(const char *s)
 
 void remove_unlabeled_hsi(image_struct *image, reference_data_struct *gt_image, image_struct *train_image)
 {
-
 
   char error[100];
   unsigned int sum=0, partial_index=0;
@@ -236,6 +446,10 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
   command_arguments->texture_pipeline = -1;
   command_arguments->sift_thresholds[0] = -1; command_arguments->sift_thresholds[1] = -1;
   command_arguments->dsift_parameters[0] = -1; command_arguments->dsift_parameters[1] = -1; command_arguments->dsift_parameters[2] = -1; command_arguments->dsift_parameters[3] = -1;
+  command_arguments->liop_parameters[0] = -1; command_arguments->liop_parameters[1] = -1; command_arguments->liop_parameters[2] = -1; command_arguments->liop_parameters[3] = -1; command_arguments->liop_parameters[4] = -1;
+  command_arguments->hog_parameters[0] = -1; command_arguments->hog_parameters[1] = -1; command_arguments->hog_parameters[2] = -1;
+  command_arguments->reduction_method = -1;
+
 
   // determine filenames
   if(argc < 4)
@@ -252,13 +466,16 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
 	// parse options
 	for(i=4;i<argc;i++)
 	{
-
 		if(argv[i][0] != '-') break;
 		if(++i>=argc)
 			exit_with_help();
 
+
 		switch(argv[i-1][1])
 		{
+      case 'h':
+        print_info((char*)help_message);
+        break;
       case 's':
         strcpy(command_arguments->input_seg, argv[i]);
         break;
@@ -284,8 +501,9 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
         strcpy(command_arguments->output_model, argv[i]);
         break;
       case 'v':
+        //1=all, 2=only texture algorithms, 3=anything
         command_arguments->verbose = atoi(argv[i]);
-        if(command_arguments->verbose == 0){
+        if(command_arguments->verbose > 1){
           svm_set_print_string_function(&print_null);
         }
         break;
@@ -307,6 +525,32 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
         command_arguments->dsift_parameters[2] = atoi(argv[i]);
         i++;
         command_arguments->dsift_parameters[3] = atoi(argv[i]);
+        break;
+      case '1':
+        if(argv[i-1][2] != '2'){
+          print_error((char*)"Unknown option");
+          exit_with_help();
+        }
+        command_arguments->liop_parameters[0] = atoi(argv[i]);
+        i++;
+        command_arguments->liop_parameters[1] = atoi(argv[i]);
+        i++;
+        command_arguments->liop_parameters[2] = atoi(argv[i]);
+        i++;
+        command_arguments->liop_parameters[3] = atoi(argv[i]);
+        i++;
+        command_arguments->liop_parameters[4] = atof(argv[i]);
+        break;
+      case '5':
+        command_arguments->hog_parameters[0] = atoi(argv[i]);
+        i++;
+        command_arguments->hog_parameters[1] = atoi(argv[i]);
+        i++;
+        command_arguments->hog_parameters[2] = atoi(argv[i]);
+        break;
+
+      case 'r':
+        command_arguments->reduction_method = atoi(argv[i]);
         break;
 
 			/*case 'd':
@@ -395,7 +639,7 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
     param->kernel_type = 0; command_arguments->kernel_type = 0;
   }
   if(command_arguments->verbose == -1){
-    command_arguments->verbose = 0;
+    command_arguments->verbose = 2;
     svm_set_print_string_function(&print_null);
   }
   if(command_arguments->texture_pipeline == -1){
@@ -407,6 +651,15 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
   if(command_arguments->dsift_parameters[0] == -1){
     command_arguments->dsift_parameters[0] = 2; command_arguments->dsift_parameters[1] = 4; command_arguments->dsift_parameters[2] = 4; command_arguments->dsift_parameters[3] = 8;
   }
+  if(command_arguments->liop_parameters[0] == -1){
+    command_arguments->liop_parameters[0] = 11; command_arguments->liop_parameters[1] = 2; command_arguments->liop_parameters[2] = 5; command_arguments->liop_parameters[3] = 2; command_arguments->liop_parameters[4] = 0.1;
+  }
+  if(command_arguments->hog_parameters[0] == -1){
+    command_arguments->hog_parameters[0] = 32; command_arguments->hog_parameters[1] = 8; command_arguments->hog_parameters[2] = VL_FALSE;
+  }
+  if(command_arguments->reduction_method == -1){
+    command_arguments->reduction_method = 1;
+  }
 }
 
 
@@ -417,12 +670,16 @@ void do_segmentation(int algorithm, image_struct* image, segmentation_struct* se
   switch(algorithm){
     case 1:{ // ALGORITMO 1: SLIC
 
+      start_crono("SLIC");
+
       slic_parameter_t slic_params;
       slic_params.S = 10 ;   slic_params.m = 2;  slic_params.minsize = 10 ;  slic_params.CONN = 4 ;  slic_params.threshold = 0.0001 ;
       int * labels = slic (get_image_data(image) , get_image_width(image), get_image_height(image), get_image_bands(image), slic_params, &number_segments);
       load_segmentation_algorithm(seg_image, labels, get_image_width(image), get_image_height(image), error);
       set_segmentation_algorithm(seg_image, "SLIC", error);
       set_segmentation_number_segments(seg_image, number_segments, error);
+
+      stop_crono();
 
       break;}
 

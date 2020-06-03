@@ -17,6 +17,9 @@
 #include "../svm/svm.h"
 
 
+double* standardize(double* descriptors, int dim, int num, char* error);
+
+
 /**
 				 * @brief      Null printing
 				 *
@@ -39,6 +42,8 @@ void print_null(const char *s);
 int* get_means_per_segment(segmentation_struct* seg, image_struct* image, int number_segments);
 
 
+double* get_central_pixel_per_segment(segmentation_struct* seg, image_struct* image, int number_segments);
+
 /**
 				 * @brief      Gets the reference data label that is majority in each segment
 				 *
@@ -48,8 +53,9 @@ int* get_means_per_segment(segmentation_struct* seg, image_struct* image, int nu
 				 *
 				 * @return     -
 				 */
-int* get_labels_per_segment(segmentation_struct* seg, reference_data_struct* gt_train, int number_segments);
+int* get_labels_per_segment_majority_voting(segmentation_struct* seg, reference_data_struct* gt_train, int number_segments);
 
+int* get_labels_per_segment_central_pixels(segmentation_struct* seg, reference_data_struct* gt_train, int number_segments);
 
 /**
 				 * @brief      Removes the pixels labeled with zero in the reference data from the Hyperspectral image

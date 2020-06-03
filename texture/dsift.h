@@ -26,7 +26,7 @@
   				 *
   				 * @return     Descriptors data structure
   				 */
-  sift_model_t dsift_features ( image_struct * image, unsigned int * s, int* parameters );
+  descriptor_model_t dsift_features ( image_struct * image, unsigned int * s, int* parameters );
 
   /**
   				 * @brief      Computes the DSIFT descriptors per segment from an image without the posibility of setting tuning parameters
@@ -36,6 +36,6 @@
   				 *
   				 * @return     Descriptors data structure
   				 */
-  sift_model_t dsift_basic_features ( image_struct * image, unsigned int * s );
+  descriptor_model_t dsift_basic_features ( image_struct * image, unsigned int * s );
 
 #endif

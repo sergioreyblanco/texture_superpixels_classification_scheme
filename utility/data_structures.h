@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
+#include <vector>
 #include "./general_utilities.h"
 
 
@@ -33,6 +35,11 @@ typedef struct {
 	int texture_pipeline; //type of texture pipeline to use
 	float sift_thresholds[2]; //thresholds for the SIFT algorithm
 	int dsift_parameters[4]; //tuning parameters for DSIFT algorithm
+	float liop_parameters[5]; //tuning parameters for LIOP algorithm
+	int hog_parameters[3]; //tuning parameters for HOG algorithm
+	float mser_parameters[7]; //tuning parameters for MSER algorithm
+	int reduction_method; //dimensionality reduction method in texture pipelines
+	float covdet_parameters[5];
 
 
 } command_arguments_struct;
@@ -76,13 +83,32 @@ typedef struct {
 
 // Descriptors generated after texture pipelines
 typedef struct {
-	int* data; // pointer to image data
+	double* data; // pointer to image data
 	int* labels_per_descriptors; // labels of each descriptor
   int number_descriptors; // number of descriptors
   int dim_descriptors; // dim of the descriptors
 	int instances; // number of descriptors that have non zero labels
 
 } texture_struct;
+
+
+// array with for each descriptor
+struct Ds { std::vector<double> desc;};
+
+// data about the descriptors extracted from a segmented image
+struct descriptor_model_t {
+		std::vector<Ds>* descriptors ;
+		int num_segments;
+		int* descriptors_per_segment;
+		int total_descriptors;
+} ;
+
+struct detector_model_t {
+	  int num_patches;
+		int dim_patches;
+		double* patches ; //num_patches of size dim_patches
+		int* coords; //x and y coords of size 2*num_patches
+} ;
 
 
 /************************************  Hyperspectral image  **********************************/
@@ -192,14 +218,102 @@ short set_descriptors_dim_descriptors(texture_struct *descriptors, int dim_descr
 
 int get_descriptors_dim_descriptors(const texture_struct *descriptors);
 
-short set_descriptors_data(texture_struct *descriptors, int* data, char *error);
+short set_descriptors_data(texture_struct *descriptors, double* data, char *error);
 
-int* get_descriptors_data(const texture_struct *descriptors);
+double* get_descriptors_data(const texture_struct *descriptors);
 
 short set_descriptors_labels(texture_struct *descriptors, int* labels, char *error);
 
 int* get_descriptors_labels(const texture_struct *descriptors);
 
 int get_descriptors_instances(const texture_struct *descriptors);
+
+
+
+
+
+
+
+
+
+
+/************************************  Command line arguments  **********************************/
+
+short set_command_arguments_input_hsi(command_arguments_struct *command_arguments, char* input_hsi, char *error);
+
+const char* get_command_arguments_input_hsi(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_input_gttrain(command_arguments_struct *command_arguments, char* input_gttrain, char *error);
+
+const char* get_command_arguments_input_gttrain(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_input_gttest(command_arguments_struct *command_arguments, char* input_gttest, char *error);
+
+const char* get_command_arguments_input_gttest(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_input_seg(command_arguments_struct *command_arguments, char* input_seg, char *error);
+
+const char* get_command_arguments_input_seg(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_output_clasfmap(command_arguments_struct *command_arguments, char* output_clasfmap, char *error);
+
+const char* get_command_arguments_output_clasfmap(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_output_clasftxt(command_arguments_struct *command_arguments, char* output_clasftxt, char *error);
+
+const char* get_command_arguments_output_clasftxt(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_trainpredict_type(command_arguments_struct *command_arguments, int trainpredict_type, char *error);
+
+int get_command_arguments_trainpredict_type(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_output_model(command_arguments_struct *command_arguments, char* output_model, char *error);
+
+const char* get_command_arguments_output_model(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_verbose(command_arguments_struct *command_arguments, int verbose, char *error);
+
+int get_command_arguments_verbose(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_kernel_type(command_arguments_struct *command_arguments, int kernel_type, char *error);
+
+int get_command_arguments_kernel_type(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_C(command_arguments_struct *command_arguments, double C, char *error);
+
+double get_command_arguments_C(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_texture_pipeline(command_arguments_struct *command_arguments, int texture_pipeline, char *error);
+
+int get_command_arguments_texture_pipeline(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_sift_thresholds(command_arguments_struct *command_arguments, float* sift_thresholds, char *error);
+
+const float* get_command_arguments_sift_thresholds(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_dsift_parameters(command_arguments_struct *command_arguments, int* dsift_parameters, char *error);
+
+const int* get_command_arguments_dsift_parameters(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_liop_parameters(command_arguments_struct *command_arguments, float* liop_parameters, char *error);
+
+const float* get_command_arguments_liop_parameters(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_reduction_method(command_arguments_struct *command_arguments, int reduction_method, char *error);
+
+const int get_command_arguments_reduction_method(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_hog_parameters(command_arguments_struct *command_arguments, int* hog_parameters, char *error);
+
+const int* get_command_arguments_hog_parameters(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_mser_parameters(command_arguments_struct *command_arguments, float* mser_parameters, char *error);
+
+const float* get_command_arguments_mser_parameters(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_covdet_parameters(command_arguments_struct *command_arguments, float* covdet_parameters, char *error);
+
+const float* get_command_arguments_covdet_parameters(const command_arguments_struct *command_arguments);
+
 
 #endif

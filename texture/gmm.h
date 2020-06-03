@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vl/gmm.h>
+#include "pca.h"
 
   // data structure with the parameters needed for the GMM computation
   struct gmm_parameter_t {

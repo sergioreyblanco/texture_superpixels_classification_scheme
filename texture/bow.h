@@ -40,7 +40,7 @@ const int SBLOCK_BOW = 2048 ;
 				 *
 				 * @return     Descriptor arrays
 				 */
-int * bow ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K );
+double * bow ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K );
 
 
 #endif

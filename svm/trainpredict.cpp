@@ -179,6 +179,14 @@ short load_problem_hsi(image_struct *train_image, reference_data_struct *gt_trai
 short load_problem_texture(texture_struct *descriptors_train, struct svm_problem* prob, struct svm_node *X_matrix)
 {
 
+	/*for(int i=0; i<get_descriptors_number_descriptors(descriptors_train);i++){
+		printf("\n\n%d\n", get_descriptors_labels(descriptors_train)[i]);
+
+		for(int b=0;b<get_descriptors_dim_descriptors(descriptors_train);b++) {
+			printf("%d  ", get_descriptors_data(descriptors_train)[i*get_descriptors_dim_descriptors(descriptors_train)+b]);
+		}
+	}*/
+
 	//SVM problem
 	prob->l = get_descriptors_number_descriptors(descriptors_train);
 	prob->y = (double*)malloc(sizeof(double)*prob->l);
@@ -531,10 +539,10 @@ void predict_hsi(command_arguments_struct* command_arguments, struct svm_paramet
 	struct svm_node *x;
 
 
-	output = fopen(command_arguments->output_clasftxt,"w");
+	output = fopen((char*)get_command_arguments_output_clasftxt(command_arguments),"w");
 	if(output == NULL)
 	{
-		sprintf(error, "can't open output file %s", command_arguments->output_clasftxt);
+		sprintf(error, "can't open output file %s", (char*)get_command_arguments_output_clasftxt(command_arguments));
 		print_error((char*)error);
 		exit(EXIT_FAILURE);
 	}
@@ -564,7 +572,7 @@ void predict_hsi(command_arguments_struct* command_arguments, struct svm_paramet
 	}
 
 
-	if(command_arguments->trainpredict_type == 1){ //prediction by pixel
+	if(get_command_arguments_trainpredict_type(command_arguments) == 1){ //prediction by pixel
 		x = (struct svm_node *) malloc((get_image_bands(image)+1)*sizeof(struct svm_node));
 
 		for(unsigned int i=0;i<get_reference_data_width(gt_test)*get_reference_data_height(gt_test);i++){
@@ -594,7 +602,7 @@ void predict_hsi(command_arguments_struct* command_arguments, struct svm_paramet
 				classification_map[i] = (int)predict_label;
 			}
 		}
-	}else if(command_arguments->trainpredict_type == 2){ //prediction by block
+	}else if(get_command_arguments_trainpredict_type(command_arguments) == 2){ //prediction by block
 		unsigned char* result;
 		double* block_pixels;
 		int part_index=0;
@@ -656,7 +664,7 @@ void predict_hsi(command_arguments_struct* command_arguments, struct svm_paramet
 
 
 	// Classification map saving
-	classification_map_ppm(command_arguments->output_clasfmap, classification_map, get_reference_data_width(gt_test), get_reference_data_height(gt_test), error, message);
+	classification_map_ppm((char*)get_command_arguments_output_clasfmap(command_arguments), classification_map, get_reference_data_width(gt_test), get_reference_data_height(gt_test), error, message);
 
 	//Accuracy computation
 	if (svm_type==NU_SVR || svm_type==EPSILON_SVR)
@@ -669,7 +677,7 @@ void predict_hsi(command_arguments_struct* command_arguments, struct svm_paramet
 	}
 	else{
 		// Confusion matrix computation
-		confusion_matrix( gt_test, classification_map );
+		confusion_matrix( gt_test, classification_map, NULL );
 	}
 
 
@@ -714,11 +722,11 @@ void predict_texture(command_arguments_struct* command_arguments, texture_struct
 	set_labels_per_segment(seg_image, classification_map, predict_labels_aux, get_descriptors_number_descriptors(descriptors));
 
 	// Classification map saving
-	classification_map_ppm(command_arguments->output_clasfmap, classification_map, get_reference_data_width(gt_test), get_reference_data_height(gt_test), error, message);
+	//classification_map_ppm((char*)get_command_arguments_output_clasfmap(command_arguments), classification_map, get_reference_data_width(gt_test), get_reference_data_height(gt_test), error, message);
 
 	// Prediction textfile saving
-	prediction_textfile(classification_map, gt_test, command_arguments->output_clasftxt, error);
+	//prediction_textfile(classification_map, gt_test, (char*)get_command_arguments_output_clasftxt(command_arguments), error);
 
 	// Confusion matrix computation
-	confusion_matrix( gt_test, classification_map );
+	confusion_matrix( gt_test, classification_map, seg_image);
 }

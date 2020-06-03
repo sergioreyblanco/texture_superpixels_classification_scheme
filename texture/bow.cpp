@@ -177,7 +177,8 @@ void bow_encode(int *datos, double *out, double *mean, int N, int K, int dim)
 
 
    //normalizacion: da peores resultados que no hacerla
-   /*n=0;
+   double n=0;
+   double z;
    for(k=0;k<dim*K;k++) //para todos los elementos del descriptor de este segmento
    {
      if(out[k] != -1){
@@ -192,7 +193,7 @@ void bow_encode(int *datos, double *out, double *mean, int N, int K, int dim)
        out[k] /= n; //los divide entre el valor antes calculado
      }
 
-   }*/
+   }
    free(clase); //se libera el vector con las asignaciones de cada pixel del segmento al centroide actual
 }
 
@@ -232,7 +233,7 @@ int *numero_cuencas(S *lab, int H, int V, int *tot1, int *mi1, int *ma1)
 
   K : numero de centroides
 */
-int * bow ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K )
+double * bow ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K )
 {
 
   int  i, j, k ;
@@ -247,11 +248,12 @@ int * bow ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans
   //mi1=model.mi;ma1=model.ma;tipo=model.tipo;
 
   //se cuenta el numero de segmentos y el tam minimo y maximo de cada uno (en cantidad de pixeles que contienen)
-  int *data1, HV1, mis, mas ;
+  double *data1;
+  int HV1, mis, mas ;
   numero_cuencas(seg,H,V,&HV1,&mis,&mas);
   V1=1; //nada
   H1=HV1; //numero de segmentos
-   data1= new int [ HV1*K*B ] ( ) ; //descriptores de bow (tantos como segmentos haya, cada uno con k componentes)
+   data1= new double [ HV1*K*B ] ( ) ; //descriptores de bow (tantos como segmentos haya, cada uno con k componentes)
 
    //obtenemos componentes de segmentos
    int nseg=HV1; //numero de segmentos
@@ -300,7 +302,8 @@ int * bow ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans
 
       //ALGUN OTRO POSTPROCESADO ??
       for(j=0;j<K*B;j++)
-        data1[k*K*B+j] = (int)out2[j];
+        if( out2[j]!= -1)  data1[k*K*B+j] = (double)10000*out2[j];
+        else  data1[k*K*B+j]=0;
    }
 
 

@@ -351,20 +351,20 @@ int get_descriptors_dim_descriptors(const texture_struct *descriptors){
 
 
 // data of the descriptors themselves
-short set_descriptors_data(texture_struct *descriptors, int* data, char *error){
-	descriptors->data = ( int*) malloc(descriptors->number_descriptors*descriptors->dim_descriptors*sizeof( int));
+short set_descriptors_data(texture_struct *descriptors, double* data, char *error){
+	descriptors->data = ( double*) malloc(descriptors->number_descriptors*descriptors->dim_descriptors*sizeof( double));
 	if (descriptors->data == NULL){
 		print_error((char*)"Could not alloc memory");
 		return EXIT_FAILURE;
 	}
 	for( int i=0;i<descriptors->number_descriptors*descriptors->dim_descriptors;i++){
-		descriptors->data[i] = ( int)data[i];
+		descriptors->data[i] = ( double)data[i];
 	}
 
   return EXIT_SUCCESS;
 }
 
-int* get_descriptors_data(const texture_struct *descriptors){
+double* get_descriptors_data(const texture_struct *descriptors){
   return(descriptors->data);
 }
 
@@ -400,4 +400,222 @@ int* get_descriptors_labels(const texture_struct *descriptors){
 // number of descriptors that have non zero labels
 int get_descriptors_instances(const texture_struct *descriptors){
   return(descriptors->instances);
+}
+
+
+
+
+
+
+
+/************************************  Command line arguments  **********************************/
+
+short set_command_arguments_input_hsi(command_arguments_struct *command_arguments, char* input_hsi, char *error){
+	strncpy(command_arguments->input_hsi, input_hsi, strlen(input_hsi));
+
+	return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_input_hsi(const command_arguments_struct *command_arguments){
+	return command_arguments->input_hsi;
+}
+
+short set_command_arguments_input_gttrain(command_arguments_struct *command_arguments, char* input_gttrain, char *error){
+	strncpy(command_arguments->input_gttrain, input_gttrain, strlen(input_gttrain));
+
+		return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_input_gttrain(const command_arguments_struct *command_arguments){
+	return command_arguments->input_gttrain;
+}
+
+short set_command_arguments_input_gttest(command_arguments_struct *command_arguments, char* input_gttest, char *error){
+	strncpy(command_arguments->input_gttest, input_gttest, strlen(input_gttest));
+
+		return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_input_gttest(const command_arguments_struct *command_arguments){
+	return command_arguments->input_gttest;
+}
+
+short set_command_arguments_input_seg(command_arguments_struct *command_arguments, char* input_seg, char *error){
+	strncpy(command_arguments->input_seg, input_seg, strlen(input_seg));
+
+		return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_input_seg(const command_arguments_struct *command_arguments){
+	return command_arguments->input_seg;
+}
+
+short set_command_arguments_output_clasfmap(command_arguments_struct *command_arguments, char* output_clasfmap, char *error){
+	strncpy(command_arguments->output_clasfmap, output_clasfmap, strlen(output_clasfmap));
+
+		return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_output_clasfmap(const command_arguments_struct *command_arguments){
+	return command_arguments->output_clasfmap;
+}
+
+short set_command_arguments_output_clasftxt(command_arguments_struct *command_arguments, char* output_clasftxt, char *error){
+	strncpy(command_arguments->output_clasftxt, output_clasftxt, strlen(output_clasftxt));
+
+		return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_output_clasftxt(const command_arguments_struct *command_arguments){
+	return command_arguments->output_clasftxt;
+}
+
+short set_command_arguments_trainpredict_type(command_arguments_struct *command_arguments, int trainpredict_type, char *error){
+	command_arguments->trainpredict_type = trainpredict_type;
+
+		return(EXIT_SUCCESS);
+}
+
+int get_command_arguments_trainpredict_type(const command_arguments_struct *command_arguments){
+	return command_arguments->trainpredict_type;
+}
+
+short set_command_arguments_output_model(command_arguments_struct *command_arguments, char* output_model, char *error){
+	strncpy(command_arguments->output_model, output_model, strlen(output_model));
+
+		return(EXIT_SUCCESS);
+}
+
+const char* get_command_arguments_output_model(const command_arguments_struct *command_arguments){
+	return command_arguments->output_model;
+}
+
+short set_command_arguments_verbose(command_arguments_struct *command_arguments, int verbose, char *error){
+	command_arguments->verbose = verbose;
+
+		return(EXIT_SUCCESS);
+}
+
+int get_command_arguments_verbose(const command_arguments_struct *command_arguments){
+	return command_arguments->verbose;
+}
+
+short set_command_arguments_kernel_type(command_arguments_struct *command_arguments, int kernel_type, char *error){
+	command_arguments->kernel_type = kernel_type;
+
+		return(EXIT_SUCCESS);
+}
+
+int get_command_arguments_kernel_type(const command_arguments_struct *command_arguments){
+	return command_arguments->kernel_type;
+}
+
+short set_command_arguments_C(command_arguments_struct *command_arguments, double C, char *error){
+	command_arguments->C = C;
+
+		return(EXIT_SUCCESS);
+}
+
+double get_command_arguments_C(const command_arguments_struct *command_arguments){
+	return command_arguments->C;
+}
+
+short set_command_arguments_texture_pipeline(command_arguments_struct *command_arguments, int texture_pipeline, char *error){
+	command_arguments->texture_pipeline = texture_pipeline;
+
+		return(EXIT_SUCCESS);
+}
+
+int get_command_arguments_texture_pipeline(const command_arguments_struct *command_arguments){
+	return command_arguments->texture_pipeline;
+}
+
+short set_command_arguments_sift_thresholds(command_arguments_struct *command_arguments, float* sift_thresholds, char *error){
+	command_arguments->sift_thresholds[0] = sift_thresholds[0];
+	command_arguments->sift_thresholds[1] = sift_thresholds[1];
+
+		return(EXIT_SUCCESS);
+}
+
+const float* get_command_arguments_sift_thresholds(const command_arguments_struct *command_arguments){
+	return command_arguments->sift_thresholds;
+}
+
+short set_command_arguments_dsift_parameters(command_arguments_struct *command_arguments, int* dsift_parameters, char *error){
+	command_arguments->dsift_parameters[0] = dsift_parameters[0];
+	command_arguments->dsift_parameters[1] = dsift_parameters[1];
+	command_arguments->dsift_parameters[2] = dsift_parameters[2];
+	command_arguments->dsift_parameters[3] = dsift_parameters[3];
+
+		return(EXIT_SUCCESS);
+}
+
+const int* get_command_arguments_dsift_parameters(const command_arguments_struct *command_arguments){
+	return command_arguments->dsift_parameters;
+}
+
+short set_command_arguments_liop_parameters(command_arguments_struct *command_arguments, float* liop_parameters, char *error){
+	command_arguments->liop_parameters[0] = liop_parameters[0];
+	command_arguments->liop_parameters[1] = liop_parameters[1];
+	command_arguments->liop_parameters[2] = liop_parameters[2];
+	command_arguments->liop_parameters[3] = liop_parameters[3];
+	command_arguments->liop_parameters[4] = liop_parameters[4];
+
+		return(EXIT_SUCCESS);
+}
+
+const float* get_command_arguments_mser_parameters(const command_arguments_struct *command_arguments){
+	return command_arguments->mser_parameters;
+}
+
+short set_command_arguments_mser_parameters(command_arguments_struct *command_arguments, float* mser_parameters, char *error){
+	command_arguments->mser_parameters[0] = mser_parameters[0];
+	command_arguments->mser_parameters[1] = mser_parameters[1];
+	command_arguments->mser_parameters[2] = mser_parameters[2];
+	command_arguments->mser_parameters[3] = mser_parameters[3];
+	command_arguments->mser_parameters[4] = mser_parameters[4];
+	command_arguments->mser_parameters[5] = mser_parameters[5];
+	command_arguments->mser_parameters[6] = mser_parameters[6];
+
+		return(EXIT_SUCCESS);
+}
+
+const float* get_command_arguments_covdet_parameters(const command_arguments_struct *command_arguments){
+	return command_arguments->covdet_parameters;
+}
+
+short set_command_arguments_covdet_parameters(command_arguments_struct *command_arguments, float* covdet_parameters, char *error){
+	command_arguments->covdet_parameters[0] = covdet_parameters[0];
+	command_arguments->covdet_parameters[1] = covdet_parameters[1];
+	command_arguments->covdet_parameters[2] = covdet_parameters[2];
+	command_arguments->covdet_parameters[3] = covdet_parameters[3];
+	command_arguments->covdet_parameters[4] = covdet_parameters[4];
+
+		return(EXIT_SUCCESS);
+}
+
+const float* get_command_arguments_liop_parameters(const command_arguments_struct *command_arguments){
+	return command_arguments->liop_parameters;
+}
+
+short set_command_arguments_reduction_method(command_arguments_struct *command_arguments, int reduction_method, char *error){
+	command_arguments->reduction_method = reduction_method;
+
+		return(EXIT_SUCCESS);
+}
+
+const int get_command_arguments_reduction_method(const command_arguments_struct *command_arguments){
+	return command_arguments->reduction_method;
+}
+
+short set_command_arguments_hog_parameters(command_arguments_struct *command_arguments, int* hog_parameters, char *error){
+	command_arguments->hog_parameters[0] = hog_parameters[0];
+	command_arguments->hog_parameters[1] = hog_parameters[1];
+	command_arguments->hog_parameters[2] = hog_parameters[2];
+
+		return(EXIT_SUCCESS);
+}
+
+const int* get_command_arguments_hog_parameters(const command_arguments_struct *command_arguments){
+	return command_arguments->hog_parameters;
 }

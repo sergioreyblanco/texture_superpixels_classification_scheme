@@ -21,7 +21,7 @@
 #include <exception>
 #include "kmeans.h"
 #include "sift.h"
-
+#include "liop.h"
 
 /**
          * @brief      Computes hard centroids per image
@@ -36,10 +36,10 @@
          *
          * @return     -
          */
-int * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K) ;
+double * vlad ( unsigned int * data, unsigned int * seg, int B, int H, int V, kmeans_model_t & model, int & H1, int & V1, int & K) ;
 
+double * vlad_sift ( descriptor_model_t desc, int B, int H, int V, kmeans_model_t & model, int & H1, int & K );
 
-int * vlad_sift ( sift_model_t desc, int B, int H, int V, kmeans_model_t & model, int & H1, int & K );
-
+double * vlad_liop ( descriptor_model_t desc, int B, int H, int V, kmeans_model_t & model, int & H1, int & K );
 
 #endif

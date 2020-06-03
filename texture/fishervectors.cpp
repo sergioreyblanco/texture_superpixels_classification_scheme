@@ -75,21 +75,21 @@ void pixeles_por_segmento(int numSegs, int H, int V, unsigned int* seg, int **nc
 }
 
 
-int* fishervectors_features ( image_struct * image, unsigned int * s, gmm_model_t & gmm )
+double* fishervectors_features ( unsigned int * data, segmentation_struct * s, gmm_model_t & gmm )
 {
 
     int min, max, numSegs;
     int *nclas, **clas;
 
     //numero de segmentos y tamanhos min y max (en num de pixeles)
-    numero_cuencas(s, get_image_width(image), get_image_height(image), &numSegs, &min, &max);
+    numero_cuencas(get_segmentation_data(s), get_segmentation_width(s), get_segmentation_height(s), &numSegs, &min, &max);
 
     //inicializar descriptores
     //int *out_data= new int [ numSegs*2*gmm.dimensions * gmm.centers ] ( ) ;
-    int *out_data= new int [ numSegs*gmm.dimensions * gmm.centers ] ( ) ;
+    double *out_data= new double [ numSegs*gmm.dimensions * gmm.centers ] ( ) ;
 
     //obtener vector de pixeles por segmento (sus posiciones) y de num de pixeles por segmento
-    pixeles_por_segmento(numSegs, get_image_width(image), get_image_height(image), s, &nclas, &clas);
+    pixeles_por_segmento(numSegs, get_segmentation_width(s), get_segmentation_height(s), get_segmentation_data(s), &nclas, &clas);
 
 
     /////// Fisher enconding
@@ -106,7 +106,7 @@ int* fishervectors_features ( image_struct * image, unsigned int * s, gmm_model_
       //para cada banda de cada pixel del segmento actual
       for(int i=0;i<nclas[k];i++)
         for(int j=0;j<gmm.dimensions;j++)
-          datos_aux[i*gmm.dimensions+j] = (double) get_image_data(image)[  clas[k][i]  *gmm.dimensions+j]; //asigna los valores espectrales del pixel actual del segmento actual a un vector auxiliar antes creado que es datos2
+          datos_aux[i*gmm.dimensions+j] = (double) data[  clas[k][i]  *gmm.dimensions+j]; //asigna los valores espectrales del pixel actual del segmento actual a un vector auxiliar antes creado que es datos2
 
       /*double numTerms = */vl_fisher_encode (enc, VL_TYPE_DOUBLE,
                  gmm.means, gmm.dimensions, gmm.centers,
@@ -118,10 +118,11 @@ int* fishervectors_features ( image_struct * image, unsigned int * s, gmm_model_
       //for(int j=0; j<gmm.dimensions * gmm.centers*2; j++)
       for(int j=0; j<gmm.dimensions * gmm.centers; j++)
         //out_data[k *gmm.dimensions*gmm.centers*2 + j] = 10000*enc[ j ];
-        out_data[k *gmm.dimensions*gmm.centers + j] = (int)(10000*((enc[ 2*j ] + enc[ 2*j+1 ])/2));
+        out_data[k *gmm.dimensions*gmm.centers + j] = (double)(10000*((enc[ 2*j ] + enc[ 2*j+1 ])/2));
 
       free(datos_aux);
     }
+
 
     free(enc);
 

@@ -20,7 +20,9 @@
 #include "fishervectors.h"
 #include "sift.h"
 #include "dsift.h"
-#include "pca.h"
+#include "liop.h"
+#include "hog.h"
+
 
 /**
          * @brief      Can select different texture pipelines to compute descriptors per image
@@ -34,6 +36,6 @@
          *
          * @return     Descriptors data structure
          */
-texture_struct* texture_pipeline(image_struct* image,  segmentation_struct* seg, reference_data_struct* gt_train, int num_pixels,  command_arguments_struct *command_arguments, char* error);
+texture_struct* texture_pipeline(image_struct* image, image_struct* train_image,  segmentation_struct* seg, reference_data_struct* gt_train, int num_pixels,  command_arguments_struct *command_arguments, char* error);
 
 #endif

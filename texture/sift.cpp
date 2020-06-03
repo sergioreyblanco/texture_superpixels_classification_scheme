@@ -9,45 +9,43 @@
 
 #include "sift.h"
 
-//finds max and min values
-template < typename D >
-void find_maxmin(D *data, int numData, vl_size* min_value, vl_size* max_value)
-{
-  vl_size ma = 0, mi=10000000;
+float* flip_descriptor(float *src){
+    float*dst = (float*)malloc(128*sizeof(float));
+    int const BO = 8; /* number of orientation bins */
+    int const BP = 4; /* number of spatial bins     */
+    int i, j, t;
 
-  for(int i=0; i<numData;i++){
-    if(data[i] > ma){
-      ma = data[i];
-    } else if(data[i] < mi){
-      mi = data[i];
+    for(j = 0; j < BP; ++j){
+        int jp = BP - 1 - j;
+        for(i = 0; i < BP; ++i){
+            int o = BO*i + BP*BO*j;
+            int op = BO*i + BP*BO*jp;
+            dst[op] = src[o];
+            for(t = 1; t < BO; ++t){
+                dst[BO - t + op] = src[t+o];
+            }
+        }
     }
-  }
 
-  (*max_value) = ma;
-  (*min_value) = mi;
+    return(dst);
 }
 
-
-sift_model_t sift_features ( image_struct * image, unsigned int * seg, float* thresholds )
+descriptor_model_t raw_sift_features ( image_struct * image, unsigned int * seg, detector_model_t * keypoints, float* covdet_parameters )
 {
 
   /*********** variables ******************/
   vl_sift_pix *fdata;
-  VlSiftFilt *filt = 0 ;
-  int octaves = -1, levels = 3, omin = -1 ;
-  int* nkeys_len;
-  int first = 1, err;
-  VlSiftKeypoint const *keys = 0 ;
-  int nkeys  ;
-  VlSiftKeypoint const *k ;
-  double angles [4] ;
-  int nangles ;
   vl_size max_value = 0, min_value=10000000;
   int nsegs = 0;
-  Ds descriptor;
-  double edge_thresh  = thresholds[0] ;
-  double peak_thresh  = thresholds[1] ;
-  sift_model_t output;
+  descriptor_model_t output;
+  int dim_sift_descriptor=128;
+  vl_size patchResolution = (vl_size)covdet_parameters[1];
+  vl_size patchSide = 2 * patchResolution + 1;
+  double patchRelativeExtent = (double)covdet_parameters[2];
+  double patchStep = (double)patchRelativeExtent / patchResolution;
+  float * patch;
+  float * patchXY;
+  float tempDesc[128];
 
   for(unsigned int sg=0;sg < get_image_width(image)*get_image_height(image);sg++){
     if(seg[sg] > (unsigned int)nsegs){
@@ -70,6 +68,114 @@ sift_model_t sift_features ( image_struct * image, unsigned int * seg, float* th
     //rescale: rescales the values in the range [0.0, 255.0] as the algorithm is tuned for PGM images
     for(unsigned int j=0; j<get_image_width(image)*get_image_height(image);j++){
       fdata[j] = (vl_sift_pix) 0 + ( (vl_sift_pix)((get_image_data(image)[((i*get_image_width(image)*get_image_height(image)) + j)] - min_value)*(255-0)) / (vl_sift_pix)(max_value-min_value) );
+      //fdata[j] = (vl_sift_pix) get_image_data(image)[((i*get_image_width(image)*get_image_height(image)) + j)];
+    }
+
+    VlSiftFilt * sift = vl_sift_new(16, 16, 1, 3, 0);
+    //vl_sift_set_magnif(sift, 3.0);
+
+    patch=(float*)vl_malloc(sizeof(float)*keypoints[i].dim_patches);
+    patchXY = (float*)malloc(2*sizeof(float)*patchSide*patchSide);
+    printf("\t %d descriptors\n", keypoints[i].num_patches);
+
+
+    for(int p1=0; p1<keypoints[i].num_patches; p1++){
+      for(int p2=0; p2<keypoints[i].dim_patches; p2++){
+        patch[p2] = keypoints[i].patches[p1*keypoints[i].dim_patches+p2];
+      }
+
+      vl_imgradient_polar_f(patchXY, patchXY+1,
+                            2, 2 * patchSide,
+                            patch, patchSide, patchSide, patchSide);
+
+      vl_sift_calc_raw_descriptor(sift,
+                                  patchXY,
+                                  tempDesc,
+                                  (int)patchSide, (int)patchSide,
+                                  (double)(patchSide - 1) / 2, (double)(patchSide - 1) / 2,
+                                  (double)patchRelativeExtent / (3.0 * (4 + 1) / 2) / patchStep,
+                                  VL_PI / 2);
+
+      float* desc = flip_descriptor(tempDesc);
+
+      Ds descriptor;
+
+      int x=keypoints[i].coords[2*p1],y=keypoints[i].coords[2*p1+1];
+      //printf("coords: %f %f\n", x,y);
+
+      for( int d=0; d<dim_sift_descriptor; d++){
+        descriptor.desc.push_back((double) desc[d]);
+        //printf("%f  ", desc[d]);
+      }//printf("\n\n");
+
+      output.descriptors[seg[y * get_image_width(image) + x]].push_back(descriptor);
+    }
+
+
+    /***************** Finish up ******************/
+    free(patch);
+    free(patchXY);
+    vl_sift_delete(sift);
+  }
+
+  /***************** Count descriptors per segment ******************/
+  output.total_descriptors = 0;
+  for(int ns=0;ns<output.num_segments;ns++){
+    output.descriptors_per_segment[ns] = (int)output.descriptors[ns].size();
+    output.total_descriptors += (int)output.descriptors[ns].size();
+  }
+
+  printf("-- %d\n", output.total_descriptors);
+
+  return  output  ;
+}
+
+
+
+
+descriptor_model_t sift_features ( image_struct * image, unsigned int * seg, float* thresholds )
+{
+
+  /*********** variables ******************/
+  vl_sift_pix *fdata;
+  VlSiftFilt *filt = 0 ;
+  int octaves = -1, levels = 3, omin = -1 ;
+  int* nkeys_len;
+  int first = 1, err;
+  VlSiftKeypoint const *keys = 0 ;
+  int nkeys  ;
+  VlSiftKeypoint const *k ;
+  double angles [4] ;
+  int nangles ;
+  vl_size max_value = 0, min_value=10000000;
+  int nsegs = 0;
+  double edge_thresh  = thresholds[0] ;
+  double peak_thresh  = thresholds[1] ;
+  descriptor_model_t output;
+  int dim_sift_descriptor=128;
+
+  for(unsigned int sg=0;sg < get_image_width(image)*get_image_height(image);sg++){
+    if(seg[sg] > (unsigned int)nsegs){
+      nsegs = seg[sg];
+    }
+  }
+
+  output.num_segments = nsegs+1;
+  output.descriptors = new std::vector<Ds>[output.num_segments];
+  output.descriptors_per_segment = new int[output.num_segments];
+
+  for(unsigned int i=0;i<get_image_bands(image);i++){ //para cada dimensión
+    printf("\n\n\t** Band %d **\n", i);
+
+    /*********** rescaling: [0,255] ******************/
+    find_maxmin(get_image_data(image)+(i*get_image_width(image)*get_image_height(image)),   get_image_width(image)*get_image_height(image),  &min_value,  &max_value);
+
+    fdata = (vl_sift_pix *) malloc(get_image_width(image)*get_image_height(image) * sizeof ((double) get_image_data(image)[0]) * sizeof (vl_sift_pix)) ;
+
+    //rescale: rescales the values in the range [0.0, 255.0] as the algorithm is tuned for PGM images
+    for(unsigned int j=0; j<get_image_width(image)*get_image_height(image);j++){
+      fdata[j] = (vl_sift_pix) 0 + ( (vl_sift_pix)((get_image_data(image)[((i*get_image_width(image)*get_image_height(image)) + j)] - min_value)*(255-0)) / (vl_sift_pix)(max_value-min_value) );
+      //fdata[j] = (vl_sift_pix) get_image_data(image)[((i*get_image_width(image)*get_image_height(image)) + j)];
     }
 
 
@@ -122,20 +228,23 @@ sift_model_t sift_features ( image_struct * image, unsigned int * seg, float* th
         for (unsigned int q = 0 ; q < (unsigned) nangles ; ++q) {
 
           // compute descriptor
-          vl_sift_calc_keypoint_descriptor(filt, descriptor.desc, k, angles [q]) ;
+          Ds descriptor;
+          vl_sift_pix desc[128];
+          vl_sift_calc_keypoint_descriptor(filt, desc, k, angles [q]) ;
+
 
           // rescaling: rescales the values in the range of the HSI image
           for (int l = 0 ; l < dim_sift_descriptor ; ++l) {
-            double x = (512.0 * descriptor.desc[l]) ; //double x = (512.0 * descr [l]) ;
+            double x = (512.0 * desc[l]) ; //double x = (512.0 * descr [l]) ;
             //x = (x < 255.0) ? x : 255.0 ;
 
             //rescaling original range
             x = (double)min_value + (double)( ((x-0)*(double)(max_value-min_value))/(255-0) );
 
-            descriptor.desc[l] = (vl_sift_pix)x;
+            descriptor.desc.push_back((vl_sift_pix)x);
           }
 
-          output.descriptors[seg[(int)keys [nk].y * get_image_width(image) + (int)keys [nk].x]].push_back(descriptor);
+          output.descriptors[seg[(int)round(keys [nk].y) * get_image_width(image) + (int)round(keys [nk].x)]].push_back(descriptor);
         }
       }
     }
