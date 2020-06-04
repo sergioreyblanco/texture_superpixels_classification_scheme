@@ -25,9 +25,11 @@ The scheme was tested under Ubuntu 17.04 and 18.04 systems. Follow these instruc
 
 	1. Download the repository ``
 
-	2. Install dependencies: `sudo apt-get install libblas-dev liblapacke-dev liblapack-dev libvlfeat-dev libeigen3-dev`.
+	2. Install dependencies: `sudo apt-get install libblas-dev liblapacke-dev liblapack-dev libeigen3-dev`.
 
-	3. Compile: `make`.
+	3. Create soft link for VLfeat library: `sudo ln -s [this_repository_path]/texture_classification_scheme/vlfeat-0.9.21/bin/glnxa64/libvl.so /usr/lib/libvl.so`.
+
+	4. Compile: `make`.
 
 	\*. Rebuild with `make clean; make`
 
@@ -38,13 +40,13 @@ The input arguments structure are the following ones:
 
 	./texture_classification_scheme [hsi] [train] [test] [options]
 
-Without options and assuming you are using the well-known dataset *Salinas*, the command would be:
+Without options and assuming you are using the remote sensing literature standard image *Salinas*, the command would be:
 
 	./texture_classification_scheme ./data/Salinas.raw ./data/Salinas_train.raw ./data/Salinas_test.raw
 
 However you can dive into the *advanced* mode (see next paragraph for description of all options):
 
-	./texture_classification_scheme ./data/Salinas.raw ./data/Salinas_train.raw ./data/Salinas_test.raw -s data/Salinas_s10.raw -m output/cmap.ppm -f output/prediction.txt -t 1 -k 0 -c 0.01 -o output/output.model -v 1
+	./texture_classification_scheme ./data/Salinas.raw ./data/Salinas_train.raw ./data/Salinas_test.raw -s ./data/Salinas_s10.raw -m ./output/cmap.ppm -f ./output/prediction.txt -t 1 -k 0 -c 0.01 -o ./output/output.model -v 1
 
 All options:
 
