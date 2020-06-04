@@ -1,5 +1,5 @@
 
-# Texture classification scheme
+# Texture features superpixel-based classification scheme
 
 
 ## Introduction
