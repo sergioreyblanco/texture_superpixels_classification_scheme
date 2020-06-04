@@ -25,11 +25,9 @@ The scheme was tested under Ubuntu 17.04 and 18.04 systems. Follow these instruc
 
 	1. Download the repository ``
 
-	2. Install dependencies: `sudo apt-get install libblas-dev liblapacke-dev liblapack-dev libeigen3-dev`.
+	2. Install dependencies: `apt-get install libblas-dev liblapacke-dev liblapack-dev libeigen3-dev libopenblas-dev`.
 
-	3. Create soft link for VLfeat library: `sudo ln -s [this_repository_path]/texture_classification_scheme/vlfeat-0.9.21/bin/glnxa64/libvl.so /usr/lib/libvl.so`.
-
-	4. Compile: `make`.
+	3. Compile: `make`.
 
 	\*. Rebuild with `make clean; make`
 
