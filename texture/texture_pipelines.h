@@ -22,6 +22,7 @@
 #include "dsift.h"
 #include "liop.h"
 #include "hog.h"
+#include "lbp.h"
 
 
 /**

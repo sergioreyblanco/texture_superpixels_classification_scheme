@@ -1741,6 +1741,74 @@ texture_struct* texture_pipeline(image_struct* image, image_struct* train_image,
 
 
 
+
+
+    case 20:{ // METODO 20: LBP, Kmeans y VLAD
+      kmeans_parameter_t params ;
+      kmeans_model_t model_kmeans ;
+      descriptor_model_t model_lbp ;
+      int H1, V1 ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_lbp_descriptor = 58;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_lbp_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_lbp = lbp_features ( image_aux, get_segmentation_data(seg) ) ;
+      } else{
+        model_lbp = lbp_features ( image, get_segmentation_data(seg) );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_lbp.total_descriptors * dim_lbp_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_lbp.num_segments;i++){
+        for(unsigned int j=0;j<model_lbp.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_lbp_descriptor;k++){
+            raw_features[partial_sum*dim_lbp_descriptor + k] = (int) 100000 * model_lbp.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "KMEANS" ) ;
+
+      kmeans( raw_features , model_lbp.total_descriptors, dim_lbp_descriptor, params,  &model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "VLAD" ) ;
+
+      if(dim_lbp_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, &model_kmeans, NULL, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments));
+        data = vlad( get_image_data(image), get_segmentation_data(seg), get_image_bands(image), get_image_width(image), get_image_height(image), model_kmeans, H1 , V1, K) ;
+        dim = K*get_image_bands(image);
+      } else{
+        data = vlad( get_image_data(image_aux), get_segmentation_data(seg), dim_lbp_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1 , V1, K) ;
+        dim = K*get_image_bands(image_aux);
+      }
+
+      destroy_kmeans_model( model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
     default:{
       print_error((char*)"Texture method not recognized");
       exit(EXIT_FAILURE);}

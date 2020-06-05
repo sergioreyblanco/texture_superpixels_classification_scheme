@@ -623,11 +623,14 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
 	param->weight_label = NULL;
 	param->weight = NULL;
 
+  if(command_arguments->output_model[0] == -1){
+    strcpy(command_arguments->output_model, "./output/output.model");
+  }
   if(command_arguments->output_clasfmap[0] == -1){
-    strcpy(command_arguments->output_clasfmap, "output/map.ppm");
+    strcpy(command_arguments->output_clasfmap, "./output/cmap.ppm");
   }
   if(command_arguments->output_clasftxt[0] == -1){
-    strcpy(command_arguments->output_clasftxt, "output/prediction.txt");
+    strcpy(command_arguments->output_clasftxt, "./output/prediction.txt");
   }
   if(command_arguments->trainpredict_type == -1){
     command_arguments->trainpredict_type = 3;

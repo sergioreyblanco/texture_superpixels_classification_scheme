@@ -1,7 +1,7 @@
 
 CXX=g++
 CFLAGS = -Wall -O3
-LDLIBS = -lm -lopenblas -llapacke -L./vlfeat-0.9.21/bin/glnxa64 -lvl -Wl,-rpath=./vlfeat-0.9.21/bin/glnxa64
+LDLIBS = -lm -lopenblas -llapacke -L./vlfeat-0.9.21/bin/glnxa64 -lvl
 CPPFLAGS = -I./vlfeat-0.9.21
 
 DIRS = texture utility svm .

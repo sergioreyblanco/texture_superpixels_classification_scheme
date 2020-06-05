@@ -722,10 +722,10 @@ void predict_texture(command_arguments_struct* command_arguments, texture_struct
 	set_labels_per_segment(seg_image, classification_map, predict_labels_aux, get_descriptors_number_descriptors(descriptors));
 
 	// Classification map saving
-	//classification_map_ppm((char*)get_command_arguments_output_clasfmap(command_arguments), classification_map, get_reference_data_width(gt_test), get_reference_data_height(gt_test), error, message);
+	classification_map_ppm((char*)get_command_arguments_output_clasfmap(command_arguments), classification_map, get_reference_data_width(gt_test), get_reference_data_height(gt_test), error, message);
 
 	// Prediction textfile saving
-	//prediction_textfile(classification_map, gt_test, (char*)get_command_arguments_output_clasftxt(command_arguments), error);
+	prediction_textfile(classification_map, gt_test, (char*)get_command_arguments_output_clasftxt(command_arguments), error);
 
 	// Confusion matrix computation
 	confusion_matrix( gt_test, classification_map, seg_image);

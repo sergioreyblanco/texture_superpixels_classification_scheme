@@ -126,15 +126,13 @@ int main(int argc, char **argv){
     stop_crono();
 
     // saving of the created model into disk
-    if(get_command_arguments_output_model(command_arguments)[0] != -1) {
-  		if(svm_save_model((char*)get_command_arguments_output_model(command_arguments), svm_model)) {
-        sprintf(error, "Cannot save model to file %s", (char*)get_command_arguments_output_model(command_arguments));
-        print_error((char*)error);
-  			exit(1);
-  		} else {
-        sprintf(message, "Saved " UNDERLINED "SVM model" RESET GREEN " : %s", (char*)get_command_arguments_output_model(command_arguments));
-        print_info((char*)message);
-      }
+		if(svm_save_model((char*)get_command_arguments_output_model(command_arguments), svm_model)) {
+      sprintf(error, "Cannot save model to file %s", (char*)get_command_arguments_output_model(command_arguments));
+      print_error((char*)error);
+			exit(1);
+		} else {
+      sprintf(message, "Saved " UNDERLINED "SVM model" RESET GREEN " : %s", (char*)get_command_arguments_output_model(command_arguments));
+      print_info((char*)message);
     }
 	}
 

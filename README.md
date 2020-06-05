@@ -1,5 +1,5 @@
 
-# Texture features superpixel-based classification scheme
+# Texture classification scheme
 
 
 ## Introduction
@@ -25,9 +25,11 @@ The scheme was tested under Ubuntu 17.04 and 18.04 systems. Follow these instruc
 
 	1. Download the repository ``
 
-	2. Install dependencies: `apt-get install libblas-dev liblapacke-dev liblapack-dev libeigen3-dev libopenblas-dev`.
+	2. Install dependencies: `sudo apt-get install libblas-dev liblapacke-dev liblapack-dev libeigen3-dev`.
 
-	3. Compile: `make`.
+	3. Create soft link for VLfeat library: `sudo ln -s [this_repository_path]/texture_classification_scheme/vlfeat-0.9.21/bin/glnxa64/libvl.so /usr/lib/libvl.so`.
+
+	4. Compile: `make`.
 
 	\*. Rebuild with `make clean; make`
 
@@ -49,8 +51,8 @@ However you can dive into the *advanced* mode (see next paragraph for descriptio
 All options:
 
 	-s  -->  input_seg : input segmented image in RAW format | DEFAULT = segmentation algorithm applied to hyperspectral image
-	-m  -->  output_clasfmap : output classification map | DEFAULT = ouput/map.ppm
-	-f  -->  output_clasftxt : output classification textfile | DEFAULT = ouput/prediction.txt
+	-m  -->  output_clasfmap : output classification map | DEFAULT = output/map.ppm
+	-f  -->  output_clasftxt : output classification textfile | DEFAULT = output/prediction.txt
 	-p  -->  trainpredict_type : type of train and prediction procedure | DEFAULT = 3
 			1 -- by pixel
 			2 -- by blocks
