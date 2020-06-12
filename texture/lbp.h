@@ -24,5 +24,5 @@
   				 * @return     Descriptors data structure
 
   				 */
-           descriptor_model_t lbp_features ( image_struct * image, unsigned int * s );
+           descriptor_model_t lbp_features ( image_struct * image, unsigned int * s, int parameter );
 #endif

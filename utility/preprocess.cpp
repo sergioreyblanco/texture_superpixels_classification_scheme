@@ -448,7 +448,9 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
   command_arguments->dsift_parameters[0] = -1; command_arguments->dsift_parameters[1] = -1; command_arguments->dsift_parameters[2] = -1; command_arguments->dsift_parameters[3] = -1;
   command_arguments->liop_parameters[0] = -1; command_arguments->liop_parameters[1] = -1; command_arguments->liop_parameters[2] = -1; command_arguments->liop_parameters[3] = -1; command_arguments->liop_parameters[4] = -1;
   command_arguments->hog_parameters[0] = -1; command_arguments->hog_parameters[1] = -1; command_arguments->hog_parameters[2] = -1;
+  command_arguments->lbp_parameter = -1;
   command_arguments->reduction_method = -1;
+  command_arguments->covdet_parameters[0] = -1; command_arguments->covdet_parameters[1] = -1; command_arguments->covdet_parameters[2] = -1; command_arguments->covdet_parameters[3] = -1; command_arguments->covdet_parameters[4] = -1;
 
 
   // determine filenames
@@ -501,9 +503,9 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
         strcpy(command_arguments->output_model, argv[i]);
         break;
       case 'v':
-        //1=all, 2=only texture algorithms, 3=anything
+        //0=no svm print, 1=svm print
         command_arguments->verbose = atoi(argv[i]);
-        if(command_arguments->verbose > 1){
+        if(command_arguments->verbose == 0){
           svm_set_print_string_function(&print_null);
         }
         break;
@@ -548,11 +550,24 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
         i++;
         command_arguments->hog_parameters[2] = atoi(argv[i]);
         break;
+      case '6':
+        command_arguments->lbp_parameter = atoi(argv[i]);
+        break;
 
       case 'r':
         command_arguments->reduction_method = atoi(argv[i]);
         break;
-
+      case '8':
+        command_arguments->covdet_parameters[0] = atof(argv[i]);
+        i++;
+        command_arguments->covdet_parameters[1] = atof(argv[i]);
+        i++;
+        command_arguments->covdet_parameters[2] = atof(argv[i]);
+        i++;
+        command_arguments->covdet_parameters[3] = atof(argv[i]);
+        i++;
+        command_arguments->covdet_parameters[4] = atof(argv[i]);
+        break;
 			/*case 'd':
 				param.degree = atoi(argv[i]);
 				break;
@@ -603,7 +618,7 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
 
   // mutually exclusive parameters
   if( (command_arguments->trainpredict_type == 1 || command_arguments->trainpredict_type == 2) && command_arguments->texture_pipeline != -1){
-    print_error((char*)"Parameters *trainpredict_type* and *texture_pipeline* are mutually exclusive");
+    print_error((char*)"Parameters *trainpredict_type* with values \"1\" or \"2\" and *texture_pipeline* are mutually exclusive");
     exit_with_help();
   }
 
@@ -642,7 +657,7 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
     param->kernel_type = 0; command_arguments->kernel_type = 0;
   }
   if(command_arguments->verbose == -1){
-    command_arguments->verbose = 2;
+    command_arguments->verbose = 0;
     svm_set_print_string_function(&print_null);
   }
   if(command_arguments->texture_pipeline == -1){
@@ -660,8 +675,14 @@ void parse_command_line(int argc, char **argv, command_arguments_struct* command
   if(command_arguments->hog_parameters[0] == -1){
     command_arguments->hog_parameters[0] = 32; command_arguments->hog_parameters[1] = 8; command_arguments->hog_parameters[2] = VL_FALSE;
   }
+  if(command_arguments->lbp_parameter == -1){
+    command_arguments->lbp_parameter = 100;
+  }
   if(command_arguments->reduction_method == -1){
     command_arguments->reduction_method = 1;
+  }
+  if(command_arguments->covdet_parameters[0] == -1){
+    command_arguments->covdet_parameters[0] = 4; command_arguments->covdet_parameters[1] = 20; command_arguments->covdet_parameters[2] = 9; command_arguments->covdet_parameters[2] = 3; command_arguments->covdet_parameters[2] = 1;
   }
 }
 

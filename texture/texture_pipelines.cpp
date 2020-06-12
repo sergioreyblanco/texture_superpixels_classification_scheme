@@ -1758,9 +1758,9 @@ texture_struct* texture_pipeline(image_struct* image, image_struct* train_image,
 
       if(dim_lbp_descriptor < get_image_bands(image)){
         reduce_dim_before_descriptors(image, image_aux, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments), error);
-        model_lbp = lbp_features ( image_aux, get_segmentation_data(seg) ) ;
+        model_lbp = lbp_features ( image_aux, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) ) ;
       } else{
-        model_lbp = lbp_features ( image, get_segmentation_data(seg) );
+        model_lbp = lbp_features ( image, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) );
       }
 
       // preparacion de datos de liop para kmeans
@@ -1796,6 +1796,753 @@ texture_struct* texture_pipeline(image_struct* image, image_struct* train_image,
         dim = K*get_image_bands(image);
       } else{
         data = vlad( get_image_data(image_aux), get_segmentation_data(seg), dim_lbp_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1 , V1, K) ;
+        dim = K*get_image_bands(image_aux);
+      }
+
+      destroy_kmeans_model( model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 21:{ //METODO 21: LBP, GMM y fisher vectors
+      gmm_parameter_t gmm_params;
+      descriptor_model_t model_lbp ;
+      gmm_model_t model_gmm;
+      int partial_sum = 0;
+      unsigned int * raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_lbp_descriptor = 58;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_lbp_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_lbp = lbp_features ( image_aux, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) ) ;
+      } else{
+        model_lbp = lbp_features ( image, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_lbp.total_descriptors * dim_lbp_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_lbp.num_segments;i++){
+        for(unsigned int j=0;j<model_lbp.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_lbp_descriptor;k++){
+            raw_features[partial_sum*dim_lbp_descriptor + k] = (int) 100000 * model_lbp.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "GMM" ) ;
+
+      gmm_params.dimensions = dim_lbp_descriptor;
+      gmm_params.numPixels = model_lbp.total_descriptors;
+      model_gmm = gmm ( raw_features, gmm_params ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "FisherVectors" ) ;
+
+      if(dim_lbp_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, NULL, &model_gmm, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments)*2);
+        data = fishervectors_features( get_image_data(image), seg, model_gmm )  ;
+        dim = K*get_image_bands(image);
+      } else{
+        data = fishervectors_features( get_image_data(image_aux), seg, model_gmm )  ;
+        dim = K*get_image_bands(image_aux);
+      }
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 22:{ // METODO 22: LBP, Kmeans y VLAD (descs)
+      kmeans_parameter_t params ;
+      kmeans_model_t model_kmeans ;
+      descriptor_model_t model_lbp ;
+      int H1 ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_lbp_descriptor = 58;
+      int R4=5;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_lbp_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_lbp = lbp_features ( image_aux, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) ) ;
+      } else{
+        model_lbp = lbp_features ( image, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_lbp.total_descriptors * dim_lbp_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_lbp.num_segments;i++){
+        for(unsigned int j=0;j<model_lbp.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_lbp_descriptor;k++){
+            raw_features[partial_sum*dim_lbp_descriptor + k] = (int) 100000 * model_lbp.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "KMEANS" ) ;
+
+      kmeans( raw_features , model_lbp.total_descriptors, dim_lbp_descriptor, params,  &model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "VLAD" ) ;
+
+      double * data_aux = vlad_sift( model_lbp, dim_lbp_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1 , K) ;
+
+      Eigen::MatrixXf pca_data_matrix(get_segmentation_number_segments(seg), model_kmeans.K * dim_lbp_descriptor );
+      for(unsigned int i=0; i<get_segmentation_number_segments(seg); i++){
+        for(unsigned int j=0; j<dim_lbp_descriptor*model_kmeans.K; j++){
+          pca_data_matrix(i,j) = data_aux[i*dim_lbp_descriptor+j];
+        }
+      }
+
+      pca_t<float> pca;
+      pca.set_input(pca_data_matrix);
+      pca.compute();
+
+      double* part_vlad = (double *)calloc(get_segmentation_number_segments(seg)*R4,sizeof(double));
+      for(unsigned int k=0;k<get_segmentation_number_segments(seg);k++){
+        for( int i=0;i<R4;i++){
+          part_vlad[k*R4+i]=0;
+          for(unsigned int j=0;j<dim_lbp_descriptor;j++){
+              part_vlad[k*R4+i] = part_vlad[k*R4+i] + pca_data_matrix(k,j)*pca.get_eigen_vectors()(j,i);
+          }
+        }
+      }
+
+      //Concatenando pixel al descriptor vlad
+      int* central_per_segment = get_means_per_segment(seg, image, get_segmentation_number_segments(seg));
+      data = (double*) malloc(get_segmentation_number_segments(seg) * (R4+get_image_bands(image)) * sizeof(double));
+      for(unsigned int i=0; i < get_segmentation_number_segments(seg); i++){
+        for(unsigned int j=0; j < (R4+get_image_bands(image)); j++){
+          if(j < (unsigned int)(R4)){
+            data[i*(R4+get_image_bands(image))+j] = part_vlad[i*(R4)+j];
+          }else{
+            data[i*(R4+get_image_bands(image))+j] = central_per_segment[i*get_image_bands(image) + (j-(R4)) ];
+          }
+        }
+      }
+
+      dim = R4 + get_image_bands(image);
+
+      destroy_kmeans_model( model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+      break;}
+
+
+
+
+
+    case 23:{ //METODO 23: LBP, GMM y fisher vectors (descs)
+      int R4=5, d=0;
+      gmm_parameter_t gmm_params;
+      gmm_model_t model_gmm;
+      descriptor_model_t model_lbp ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_lbp_descriptor = 58;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_lbp_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_lbp = lbp_features ( image_aux, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) ) ;
+      } else{
+        model_lbp = lbp_features ( image, get_segmentation_data(seg), (int)get_command_arguments_lbp_parameter(command_arguments) );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_lbp.total_descriptors * dim_lbp_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_lbp.num_segments;i++){
+        for(unsigned int j=0;j<model_lbp.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_lbp_descriptor;k++){
+            raw_features[partial_sum*dim_lbp_descriptor + k] = (int) 100000 * model_lbp.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "GMM" ) ;
+      gmm_params.dimensions = dim_lbp_descriptor;
+      gmm_params.numPixels = model_lbp.total_descriptors;
+      model_gmm = gmm ( raw_features, gmm_params ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "FisherVectors" ) ;
+
+      double* data_aux=NULL;
+      if(dim_lbp_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, NULL, &model_gmm, dim_lbp_descriptor, get_command_arguments_reduction_method(command_arguments)*2);
+        data_aux = fishervectors_features( get_image_data(image), seg, model_gmm )  ;
+        d=model_gmm.dimensions;
+      } else{
+        data_aux = fishervectors_features( get_image_data(image_aux), seg, model_gmm )  ;
+        d=dim_lbp_descriptor;
+      }
+
+      //R4 PCA
+      Eigen::MatrixXf pca_data_matrix(get_segmentation_number_segments(seg), model_gmm.centers * d );
+      for(unsigned int i=0; i<get_segmentation_number_segments(seg); i++){
+        for( int j=0; j<d*model_gmm.centers; j++){
+          pca_data_matrix(i,j) = data_aux[i*d+j];
+        }
+      }
+
+      pca_t<float> pca;
+      pca.set_input(pca_data_matrix);
+      pca.compute();
+
+      double* part_fisher = (double *)calloc(get_segmentation_number_segments(seg)*R4,sizeof(double));
+      for(unsigned int k=0;k<get_segmentation_number_segments(seg);k++){
+        for( int i=0;i<R4;i++){
+          part_fisher[k*R4+i]=0;
+          for(int j=0;j<d;j++){
+              part_fisher[k*R4+i] = part_fisher[k*R4+i] + pca_data_matrix(k,j)*pca.get_eigen_vectors()(j,i);
+          }
+        }
+      }
+
+      //Concatenando pixel al descriptor vlad
+      int* central_per_segment = get_means_per_segment(seg, image, get_segmentation_number_segments(seg));
+      data = (double*) malloc(get_segmentation_number_segments(seg) * (R4+get_image_bands(image)) * sizeof(double));
+      for(unsigned int i=0; i < get_segmentation_number_segments(seg); i++){
+        for(unsigned int j=0; j < (R4+get_image_bands(image)); j++){
+          if(j < (unsigned int)(R4)){
+            data[i*(R4+get_image_bands(image))+j] = part_fisher[i*(R4)+j];
+          }else{
+            data[i*(R4+get_image_bands(image))+j] = central_per_segment[i*get_image_bands(image) + (j-(R4)) ];
+          }
+        }
+      }
+
+      dim = R4 + get_image_bands(image);
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 24:{ // METODO 24: MSER+SIFT, Kmeans y VLAD
+      kmeans_parameter_t params ;
+      kmeans_model_t model_kmeans ;
+      descriptor_model_t model_msersift ;
+      int H1, V1 ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_msersift_descriptor = 128;
+
+
+      start_crono( "MSER+SIFT" ) ;
+
+      if(dim_msersift_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_msersift = mser_sift_features ( image_aux, get_segmentation_data(seg), NULL ) ;
+      } else{
+        model_msersift = mser_sift_features ( image, get_segmentation_data(seg), NULL );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_msersift.total_descriptors * dim_msersift_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_msersift.num_segments;i++){
+        for(unsigned int j=0;j<model_msersift.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_msersift_descriptor;k++){
+            raw_features[partial_sum*dim_msersift_descriptor + k] = (int) 100000 * model_msersift.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "KMEANS" ) ;
+
+      kmeans( raw_features , model_msersift.total_descriptors, dim_msersift_descriptor, params,  &model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "VLAD" ) ;
+
+      if(dim_msersift_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, &model_kmeans, NULL, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments));
+        data = vlad( get_image_data(image), get_segmentation_data(seg), get_image_bands(image), get_image_width(image), get_image_height(image), model_kmeans, H1 , V1, K) ;
+        dim = K*get_image_bands(image);
+      } else{
+        data = vlad( get_image_data(image_aux), get_segmentation_data(seg), dim_msersift_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1 , V1, K) ;
+        dim = K*get_image_bands(image_aux);
+      }
+
+      destroy_kmeans_model( model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 25:{ //METODO 25: MSER+SIFT, GMM y fisher vectors
+      gmm_parameter_t gmm_params;
+      descriptor_model_t model_msersift ;
+      gmm_model_t model_gmm;
+      int partial_sum = 0;
+      unsigned int * raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_msersift_descriptor = 128;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_msersift_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_msersift = mser_sift_features ( image_aux, get_segmentation_data(seg), NULL ) ;
+      } else{
+        model_msersift = mser_sift_features ( image, get_segmentation_data(seg), NULL );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_msersift.total_descriptors * dim_msersift_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_msersift.num_segments;i++){
+        for(unsigned int j=0;j<model_msersift.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_msersift_descriptor;k++){
+            raw_features[partial_sum*dim_msersift_descriptor + k] = (int) 100000 * model_msersift.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "GMM" ) ;
+
+      gmm_params.dimensions = dim_msersift_descriptor;
+      gmm_params.numPixels = model_msersift.total_descriptors;
+      model_gmm = gmm ( raw_features, gmm_params ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "FisherVectors" ) ;
+
+      if(dim_msersift_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, NULL, &model_gmm, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments)*2);
+        data = fishervectors_features( get_image_data(image), seg, model_gmm )  ;
+        dim = K*get_image_bands(image);
+      } else{
+        data = fishervectors_features( get_image_data(image_aux), seg, model_gmm )  ;
+        dim = K*get_image_bands(image_aux);
+      }
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 26:{ // METODO 26: MSER+SIFT, Kmeans y VLAD (descs)
+      kmeans_parameter_t params ;
+      kmeans_model_t model_kmeans ;
+      descriptor_model_t model_msersift ;
+      int H1 ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_msersift_descriptor = 128;
+      int R4=5;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_msersift_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_msersift = mser_sift_features ( image_aux, get_segmentation_data(seg), NULL ) ;
+      } else{
+        model_msersift = mser_sift_features ( image, get_segmentation_data(seg), NULL );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_msersift.total_descriptors * dim_msersift_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_msersift.num_segments;i++){
+        for(unsigned int j=0;j<model_msersift.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_msersift_descriptor;k++){
+            raw_features[partial_sum*dim_msersift_descriptor + k] = (int) 100000 * model_msersift.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "KMEANS" ) ;
+
+      kmeans( raw_features , model_msersift.total_descriptors, dim_msersift_descriptor, params,  &model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "VLAD" ) ;
+
+      double * data_aux = vlad_sift( model_msersift, dim_msersift_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1 , K) ;
+
+      Eigen::MatrixXf pca_data_matrix(get_segmentation_number_segments(seg), model_kmeans.K * dim_msersift_descriptor );
+      for(unsigned int i=0; i<get_segmentation_number_segments(seg); i++){
+        for(unsigned int j=0; j<dim_msersift_descriptor*model_kmeans.K; j++){
+          pca_data_matrix(i,j) = data_aux[i*dim_msersift_descriptor+j];
+        }
+      }
+
+      pca_t<float> pca;
+      pca.set_input(pca_data_matrix);
+      pca.compute();
+
+      double* part_vlad = (double *)calloc(get_segmentation_number_segments(seg)*R4,sizeof(double));
+      for(unsigned int k=0;k<get_segmentation_number_segments(seg);k++){
+        for( int i=0;i<R4;i++){
+          part_vlad[k*R4+i]=0;
+          for(unsigned int j=0;j<dim_msersift_descriptor;j++){
+              part_vlad[k*R4+i] = part_vlad[k*R4+i] + pca_data_matrix(k,j)*pca.get_eigen_vectors()(j,i);
+          }
+        }
+      }
+
+      //Concatenando pixel al descriptor vlad
+      int* central_per_segment = get_means_per_segment(seg, image, get_segmentation_number_segments(seg));
+      data = (double*) malloc(get_segmentation_number_segments(seg) * (R4+get_image_bands(image)) * sizeof(double));
+      for(unsigned int i=0; i < get_segmentation_number_segments(seg); i++){
+        for(unsigned int j=0; j < (R4+get_image_bands(image)); j++){
+          if(j < (unsigned int)(R4)){
+            data[i*(R4+get_image_bands(image))+j] = part_vlad[i*(R4)+j];
+          }else{
+            data[i*(R4+get_image_bands(image))+j] = central_per_segment[i*get_image_bands(image) + (j-(R4)) ];
+          }
+        }
+      }
+
+      dim = R4 + get_image_bands(image);
+
+      destroy_kmeans_model( model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+      break;}
+
+
+
+
+
+    case 27:{ //METODO 27: MSER+SIFT, GMM y fisher vectors (descs)
+      int R4=5, d=0;
+      gmm_parameter_t gmm_params;
+      gmm_model_t model_gmm;
+      descriptor_model_t model_msersift ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      unsigned int dim_msersift_descriptor = 128;
+
+
+      start_crono( "LBP" ) ;
+
+      if(dim_msersift_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        model_msersift = mser_sift_features ( image_aux, get_segmentation_data(seg), NULL ) ;
+      } else{
+        model_msersift = mser_sift_features ( image, get_segmentation_data(seg), NULL );
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_msersift.total_descriptors * dim_msersift_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_msersift.num_segments;i++){
+        for(unsigned int j=0;j<model_msersift.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_msersift_descriptor;k++){
+            raw_features[partial_sum*dim_msersift_descriptor + k] = (int) 100000 * model_msersift.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "GMM" ) ;
+      gmm_params.dimensions = dim_msersift_descriptor;
+      gmm_params.numPixels = model_msersift.total_descriptors;
+      model_gmm = gmm ( raw_features, gmm_params ) ;
+
+      stop_crono ( ) ;
+
+
+
+
+      start_crono( "FisherVectors" ) ;
+
+      double* data_aux=NULL;
+      if(dim_msersift_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, NULL, &model_gmm, dim_msersift_descriptor, get_command_arguments_reduction_method(command_arguments)*2);
+        data_aux = fishervectors_features( get_image_data(image), seg, model_gmm )  ;
+        d=model_gmm.dimensions;
+      } else{
+        data_aux = fishervectors_features( get_image_data(image_aux), seg, model_gmm )  ;
+        d=dim_msersift_descriptor;
+      }
+
+      //R4 PCA
+      Eigen::MatrixXf pca_data_matrix(get_segmentation_number_segments(seg), model_gmm.centers * d );
+      for(unsigned int i=0; i<get_segmentation_number_segments(seg); i++){
+        for( int j=0; j<d*model_gmm.centers; j++){
+          pca_data_matrix(i,j) = data_aux[i*d+j];
+        }
+      }
+
+      pca_t<float> pca;
+      pca.set_input(pca_data_matrix);
+      pca.compute();
+
+      double* part_fisher = (double *)calloc(get_segmentation_number_segments(seg)*R4,sizeof(double));
+      for(unsigned int k=0;k<get_segmentation_number_segments(seg);k++){
+        for( int i=0;i<R4;i++){
+          part_fisher[k*R4+i]=0;
+          for(int j=0;j<d;j++){
+              part_fisher[k*R4+i] = part_fisher[k*R4+i] + pca_data_matrix(k,j)*pca.get_eigen_vectors()(j,i);
+          }
+        }
+      }
+
+      //Concatenando pixel al descriptor vlad
+      int* central_per_segment = get_means_per_segment(seg, image, get_segmentation_number_segments(seg));
+      data = (double*) malloc(get_segmentation_number_segments(seg) * (R4+get_image_bands(image)) * sizeof(double));
+      for(unsigned int i=0; i < get_segmentation_number_segments(seg); i++){
+        for(unsigned int j=0; j < (R4+get_image_bands(image)); j++){
+          if(j < (unsigned int)(R4)){
+            data[i*(R4+get_image_bands(image))+j] = part_fisher[i*(R4)+j];
+          }else{
+            data[i*(R4+get_image_bands(image))+j] = central_per_segment[i*get_image_bands(image) + (j-(R4)) ];
+          }
+        }
+      }
+
+      dim = R4 + get_image_bands(image);
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 28:{ // METODO 28: COVDET + LIOP + Kmeans + VLAD
+
+      detector_model_t * keypoints;
+      descriptor_model_t model_liop;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      int H1, V1 ;
+      kmeans_parameter_t params ;
+      kmeans_model_t model_kmeans ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      unsigned int dim_liop_descriptor = get_command_arguments_liop_parameters(command_arguments)[2] * factorial(get_command_arguments_liop_parameters(command_arguments)[1]);
+
+
+      start_crono( "COVDET DETECTION" ) ;
+
+      if(dim_liop_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_liop_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        keypoints = covdet_keypoints ( image_aux, (float*)get_command_arguments_covdet_parameters(command_arguments) );
+      } else{
+        keypoints = covdet_keypoints ( image, (float*)get_command_arguments_covdet_parameters(command_arguments) );
+      }
+
+      stop_crono ( ) ;
+
+
+      start_crono( "LIOP" ) ;
+
+      if(dim_liop_descriptor < get_image_bands(image)){
+        model_liop = liop_features ( image_aux, get_segmentation_data(seg), keypoints, (float*)get_command_arguments_liop_parameters(command_arguments) ) ;
+      } else{
+        model_liop = liop_features ( image, get_segmentation_data(seg), keypoints, (float*)get_command_arguments_liop_parameters(command_arguments) ) ;
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_liop.total_descriptors * dim_liop_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_liop.num_segments;i++){
+        for(unsigned int j=0;j<model_liop.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_liop_descriptor;k++){
+            raw_features[partial_sum*dim_liop_descriptor + k] = (int) 100000 * model_liop.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+      start_crono( "KMEANS" ) ;
+
+      kmeans( raw_features , model_liop.total_descriptors, dim_liop_descriptor, params,  &model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+      start_crono( "VLAD" ) ;
+
+      if(dim_liop_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, &model_kmeans, NULL, dim_liop_descriptor, get_command_arguments_reduction_method(command_arguments));
+        data = vlad( get_image_data(image), get_segmentation_data(seg), get_image_bands(image), get_image_width(image), get_image_height(image), model_kmeans, H1 , V1, K) ;
+        dim = K*get_image_bands(image);
+      } else{
+        data = vlad( get_image_data(image_aux), get_segmentation_data(seg), dim_liop_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1  , V1, K) ;
+        dim = K*get_image_bands(image_aux);
+      }
+
+      destroy_kmeans_model( model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+      break;}
+
+
+
+
+
+    case 29:{ // METODO 29: COVDET + SIFT + Kmeans + VLAD
+
+      detector_model_t * keypoints;
+      descriptor_model_t model_sift;
+      image_struct* image_aux = (image_struct*)malloc(sizeof(image_struct));
+      int H1, V1 ;
+      kmeans_parameter_t params ;
+      kmeans_model_t model_kmeans ;
+      int partial_sum = 0;
+      unsigned int* raw_features;
+      unsigned int dim_sift_descriptor = 128;
+
+
+      start_crono( "KEYPOINT DETECTION" ) ;
+
+      if(dim_sift_descriptor < get_image_bands(image)){
+        reduce_dim_before_descriptors(image, image_aux, dim_sift_descriptor, get_command_arguments_reduction_method(command_arguments), error);
+        keypoints = covdet_keypoints ( image_aux, (float*)get_command_arguments_covdet_parameters(command_arguments) );
+      } else{
+        keypoints = covdet_keypoints ( image, (float*)get_command_arguments_covdet_parameters(command_arguments) );
+      }
+
+      stop_crono ( ) ;
+
+
+      start_crono( "SIFT DESCRIPTOR" ) ;
+
+      if(dim_sift_descriptor < get_image_bands(image)){
+        model_sift = raw_sift_features ( image_aux, get_segmentation_data(seg), keypoints, (float*)get_command_arguments_covdet_parameters(command_arguments));
+      } else{
+        model_sift = raw_sift_features ( image, get_segmentation_data(seg), keypoints, (float*)get_command_arguments_covdet_parameters(command_arguments));
+      }
+
+      // preparacion de datos de liop para kmeans
+      raw_features = (unsigned int*)malloc(model_sift.total_descriptors * dim_sift_descriptor * sizeof(unsigned int));
+      for(int i=0;i<model_sift.num_segments;i++){
+        for(unsigned int j=0;j<model_sift.descriptors[i].size();j++){
+          for(unsigned int k=0;k<dim_sift_descriptor;k++){
+
+            raw_features[partial_sum*dim_sift_descriptor + k] = (int) 100000 * model_sift.descriptors[i][j].desc[k];
+          }
+          partial_sum ++;
+        }
+      }
+
+      stop_crono ( ) ;
+
+
+      start_crono( "KMEANS" ) ;
+
+      kmeans( raw_features , model_sift.total_descriptors, dim_sift_descriptor, params,  &model_kmeans ) ;
+
+      stop_crono ( ) ;
+
+
+      start_crono( "VLAD" ) ;
+
+      if(dim_sift_descriptor > get_image_bands(image)){
+        reduce_dim_after_clustering(image, &model_kmeans, NULL, dim_sift_descriptor, get_command_arguments_reduction_method(command_arguments));
+        data = vlad( get_image_data(image), get_segmentation_data(seg), get_image_bands(image), get_image_width(image), get_image_height(image), model_kmeans, H1, V1, K) ;
+        dim = K*get_image_bands(image);
+      } else{
+        data = vlad( get_image_data(image_aux), get_segmentation_data(seg), dim_sift_descriptor, get_image_width(image), get_image_height(image), model_kmeans, H1, V1, K) ;
         dim = K*get_image_bands(image_aux);
       }
 

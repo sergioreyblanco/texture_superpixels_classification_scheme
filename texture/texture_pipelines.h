@@ -23,7 +23,8 @@
 #include "liop.h"
 #include "hog.h"
 #include "lbp.h"
-
+#include "mser_sift.h"
+#include "covdet.h"
 
 /**
          * @brief      Can select different texture pipelines to compute descriptors per image

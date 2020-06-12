@@ -619,3 +619,13 @@ short set_command_arguments_hog_parameters(command_arguments_struct *command_arg
 const int* get_command_arguments_hog_parameters(const command_arguments_struct *command_arguments){
 	return command_arguments->hog_parameters;
 }
+
+short set_command_arguments_lbp_parameter(command_arguments_struct *command_arguments, int lbp_parameter, char *error){
+	command_arguments->lbp_parameter = lbp_parameter;
+
+		return(EXIT_SUCCESS);
+}
+
+const int get_command_arguments_lbp_parameter(const command_arguments_struct *command_arguments){
+	return command_arguments->lbp_parameter;
+}

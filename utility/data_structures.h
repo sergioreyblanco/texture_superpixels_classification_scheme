@@ -39,6 +39,7 @@ typedef struct {
 	int hog_parameters[3]; //tuning parameters for HOG algorithm
 	float mser_parameters[7]; //tuning parameters for MSER algorithm
 	int reduction_method; //dimensionality reduction method in texture pipelines
+	int lbp_parameter; //tuning parameter for LBP algorithm
 	float covdet_parameters[5];
 
 
@@ -306,6 +307,10 @@ const int get_command_arguments_reduction_method(const command_arguments_struct 
 short set_command_arguments_hog_parameters(command_arguments_struct *command_arguments, int* hog_parameters, char *error);
 
 const int* get_command_arguments_hog_parameters(const command_arguments_struct *command_arguments);
+
+short set_command_arguments_lbp_parameter(command_arguments_struct *command_arguments, int* lbp_parameter, char *error);
+
+const int get_command_arguments_lbp_parameter(const command_arguments_struct *command_arguments);
 
 short set_command_arguments_mser_parameters(command_arguments_struct *command_arguments, float* mser_parameters, char *error);
 

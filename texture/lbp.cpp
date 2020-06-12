@@ -10,14 +10,14 @@
 #include "lbp.h"
 
 
-descriptor_model_t lbp_features ( image_struct * image, unsigned int * seg )
+descriptor_model_t lbp_features ( image_struct * image, unsigned int * seg, int parameter )
 {
 
   /*********** variables ******************/
   float *fdata;
   vl_size max_value = 0, min_value=10000000;
   int nsegs = 0;
-  vl_size cellSize = 10;
+  vl_size cellSize = parameter;
   descriptor_model_t output;
   int w=get_image_width(image);
   int h=get_image_height(image);
