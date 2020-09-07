@@ -121,3 +121,5 @@ All options:
 
 
 ## Citation
+
+Rey, S. R., Blanco, D. B., & Argüello, F. (2020). Texture Extraction Techniques for the Classification of Vegetation Species in Hyperspectral Imagery: Bag of Words Approach Based on Superpixels. Remote Sensing, 12(16), 2633.
